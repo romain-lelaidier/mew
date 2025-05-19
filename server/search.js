@@ -226,19 +226,24 @@ class YTMClient {
     downloadVideo(id) {
         console.log("Downloading video:", id)
         return new Promise((resolve, reject) => {
-            axios.post(
-                "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
-                {
-                    videoId: id,
-                    context: this.context
-                }
-            ).then(res => {
+            Promise.all([
+                axios.post(
+                    "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
+                    {
+                        videoId: id,
+                        context: this.context
+                    }
+                ),
+                axios.get(
+                    "https://music.youtube.com/s/player/b2858d36/player_ias.vflset/fr_FR/base.js",
+                ),
+            ]).then(res => {
                 try {
-
-                    if (res.status == 200) {
+                    if (res[0].status == 200 && res[1].status == 200) {
                         // extracting useful data
-                        const data = res.data
-                        resolve(data)
+                        const player = res[0].data;
+                        const base = res[1].data;
+                        resolve(base)
                     } else {
                         reject(new Error("Script error: HTTPS POST status code is " + res.status))
                     }
@@ -253,6 +258,6 @@ class YTMClient {
 
 const c = new YTMClient()
 c.downloadVideo("ImKY6TZEyrI").then(res => {
-    console.log(res)
-    fs.writeFileSync("./player_video.json", JSON.stringify(res))
+    // console.log(res)
+    fs.writeFileSync("./video_base.js", res)
 })
