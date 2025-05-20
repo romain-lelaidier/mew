@@ -1,5 +1,6 @@
 const axios = require("axios")
 const fs = require('fs')
+const cp = require('child_process')
 
 class YTMClient {
 
@@ -223,41 +224,149 @@ class YTMClient {
         })
     }
 
-    downloadVideo(id) {
-        console.log("Downloading video:", id)
+    downloadVideo(video, outputStream, onProgress) {
+        console.log("Downloading video:", video.id)
         return new Promise((resolve, reject) => {
-            Promise.all([
-                axios.post(
-                    "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
-                    {
-                        videoId: id,
-                        context: this.context
-                    }
-                ),
-                axios.get(
-                    "https://music.youtube.com/s/player/b2858d36/player_ias.vflset/fr_FR/base.js",
-                ),
-            ]).then(res => {
-                try {
-                    if (res[0].status == 200 && res[1].status == 200) {
-                        // extracting useful data
-                        const player = res[0].data;
-                        const base = res[1].data;
-                        resolve(base)
-                    } else {
-                        reject(new Error("Script error: HTTPS POST status code is " + res.status))
-                    }
-                } catch(err) {
-                    reject(err)
-                }
+            this.extractStreamUrl(video.id).then(url => {
+                axios.get(url, {
+                    responseType: "stream",
+                    headers: { "Range": "bytes=0-" }
+                }).then(res => {
+                    const webmStream = res.data;
+                    // const webmStream = fs.createReadStream("test.webm")
+                    // const outputStream = fs.createWriteStream("test3.mp3")
+                    // let coverImage = "./test.png"
+
+                    const ffmpegArgs = [
+                        '-i', 'pipe:0', // Lire à partir du flux d'entrée standard
+                        // '-i', coverImage,
+                        // '-map', '0:0', // Mapper l'audio
+                        // '-map', '1:0', // Mapper la pochette
+                        // '-c:v', 'copy', // Copier le flux vidéo (la pochette)
+                        // '-id3v2_version', '3', // Utiliser ID3v2.3 pour les métadonnées
+                        // '-metadata:s:v', 'title="Album cover"',
+                        // '-metadata:s:v', 'comment="Cover (front)"',
+                        '-metadata', `title=${video.title}`,
+                        '-metadata', `artist=${video.artist}`,
+                        '-metadata', `album=${video.album}`,
+                        // '-map_metadata', '0:s:0',
+                        // '-b:a', '192k', // Débit binaire audio
+                        '-f', 'mp3', // Format de sortie
+                        'pipe:1' // Écrire vers le flux de sortie standard
+                    ];
+
+                    const ffmpegProcess = cp.spawn('ffmpeg', ffmpegArgs);
+                    webmStream.pipe(ffmpegProcess.stdin);
+                    ffmpegProcess.stdout.pipe(outputStream);
+
+                    let totalTime;
+                    const parseTime = timeString => parseInt(timeString.replace(/:/g, ''))
+                    ffmpegProcess.stderr.on('data', (data) => {
+                        data = data.toString();
+                        // // Vous pouvez analyser la sortie d'erreur pour obtenir la progression
+                        if (data.includes("Duration:")) {
+                            const durationMatch = data.match(/Duration: (\d+:\d+:\d+.\d+)/);
+                            if (durationMatch) totalTime = parseTime(durationMatch[1]);
+                        }
+                        if (data.includes('time=')) {
+                            const progressMatch = data.match(/time=(\d+:\d+:\d+.\d+)/);
+                            if (progressMatch) {
+                                const time = parseTime(progressMatch[1])
+                                onProgress(time / totalTime)
+                            }
+                        }
+                    });
+
+                    ffmpegProcess.on('close', (code) => {
+                        if (code === 0) resolve()
+                        else reject(code)
+                    });
+                });
             }).catch(reject)
+            // Promise.all([
+            //     axios.post(
+            //         "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
+            //         {
+            //             videoId: id,
+            //             context: this.context
+            //         }
+            //     ),
+            //     axios.get(
+            //         "https://music.youtube.com/s/player/b2858d36/player_ias.vflset/fr_FR/base.js",
+            //     ),
+            // ]).then(res => {
+            //     try {
+            //         if (res[0].status == 200 && res[1].status == 200) {
+            //             // extracting useful data
+            //             const player = res[0].data;
+            //             const base = res[1].data;
+            //             resolve(base)
+            //         } else {
+            //             reject(new Error("Script error: HTTPS POST status code is " + res.status))
+            //         }
+            //     } catch(err) {
+            //         reject(err)
+            //     }
+            // }).catch(reject)
+        })
+    }
+
+    extractStreamUrl(id) {
+        return new Promise((resolve, reject) => {
+            // return resolve("https://rr1---sn-n4g-ouxz.googlevideo.com/videoplayback?expire=1747707904&ei=oJMraNKzGNbf6dsPx9uM0Qo&ip=2a02%3A842a%3A3c4f%3A7d01%3Ac8e6%3Af162%3A69b6%3A41a&id=o-AIZRHZ1sfbl6EykiztzYr1u42b9He_Vx3O4utUa4ROs-&itag=251&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&met=1747686304%2C&mh=Tb&mm=31%2C29&mn=sn-n4g-ouxz%2Csn-n4g-jqbe6&ms=au%2Crdu&mv=m&mvi=1&pl=47&rms=au%2Cau&gcr=fr&initcwndbps=2918750&bui=AecWEAatMmfIpanpkhsJMWO_pzRFBBP9e3KsZqyP4jzieaP_EYahR-TLP4vkgyGLl_iabHKNM0VcmoEp&spc=wk1kZofjhcny&vprv=1&svpuc=1&mime=audio%2Fwebm&rqh=1&gir=yes&clen=4408344&dur=261.081&lmt=1714576784227977&mt=1747685815&fvip=6&keepalive=yes&c=IOS&txp=4502434&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cgcr%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AJfQdSswRQIhAKSnuQqKbjle528DAbnuK6aXyknoJ9gkocvmnCe-QWnzAiAlPrp_ygOgms2WNEIMTAnwP2C9ElwpNj6ZgciEZXSzzw%3D%3D&lsparams=met%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=ACuhMU0wRgIhAOkH-ACuxDVHIx4VtvrJubj5-SvaK9-ylW3Kqr0PpyaEAiEAzZaGVMGRg32uqXLRzOmunQzBVwn0lvek4DCFPGUE34c%3D")
+            cp.exec("yt-dlp https://youtube.com/watch?v=" + id + " -x -g", (err, stdout, stderr) => {
+                if (stdout) {
+                    resolve(stdout)
+                } else {
+                    reject(stderr)
+                }
+            })
         })
     }
 
 }
 
 const c = new YTMClient()
-c.downloadVideo("ImKY6TZEyrI").then(res => {
-    // console.log(res)
-    fs.writeFileSync("./video_base.js", res)
-})
+
+const server = require("http").createServer((req, res) => {
+    // Définir le code de statut HTTP et le type de contenu
+    if (req.url == "/audio.mp3") {
+        console.log("envoi")
+        res.writeHead(200, { 
+            "Content-Type": "audio/mpeg",
+            "Content-Disposition": "attachment"
+        });
+        c.downloadVideo({
+            "top": true,
+            "type": "VIDEO",
+            "id": "ImKY6TZEyrI",
+            "title": "Fade Into You (Official Music Video)",
+            "artist": "Mazzy Star",
+            "views": "115 M de vues",
+            "duration": "4:22",
+            "thumbnails": [
+                {
+                    "url": "https://i.ytimg.com/vi/ImKY6TZEyrI/sddefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCghqEJQEGHgg6AJIWg&rs=AMzJL3lPQ7mk-ERMxvR3XU0MwzeWOYhNdQ",
+                    "width": 400,
+                    "height": 225
+                }
+            ]
+        }, res, console.log).then(() => {
+            console.log("fin")
+            // stream.pipe(res, { end: true })
+            // console.log(res)
+            // fs.writeFileSync("./ytm_search_result.json", JSON.stringify(res))
+        })
+    }
+
+    // Envoyer la réponse
+    // res.end('Hello, Wrld!\n');
+});
+
+// Définir le port sur lequel le serveur écoute
+const PORT = 3000;
+
+// Démarrer le serveur
+server.listen(PORT, () => {
+  console.log(`Server running at http://192.168.1.119:${PORT}/`);
+});
