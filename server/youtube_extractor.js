@@ -57,9 +57,12 @@ class YTMClient {
         }
     }
 
-    search_suggestion(query) {
-        console.log("Search suggestion:", query)
+    searchSuggestions(query) {
         return new Promise((resolve, reject) => {
+            if (query.length <= 3) {
+                return reject("Error: query length should be at least 4.")
+            }
+
             axios.post(
                 "https://music.youtube.com/youtubei/v1/music/get_search_suggestions?prettyPrint=false",
                 {
@@ -326,47 +329,4 @@ class YTMClient {
 
 }
 
-const c = new YTMClient()
-
-const server = require("http").createServer((req, res) => {
-    // Définir le code de statut HTTP et le type de contenu
-    if (req.url == "/audio.mp3") {
-        console.log("envoi")
-        res.writeHead(200, { 
-            "Content-Type": "audio/mpeg",
-            "Content-Disposition": "attachment"
-        });
-        c.downloadVideo({
-            "top": true,
-            "type": "VIDEO",
-            "id": "ImKY6TZEyrI",
-            "title": "Fade Into You (Official Music Video)",
-            "artist": "Mazzy Star",
-            "views": "115 M de vues",
-            "duration": "4:22",
-            "thumbnails": [
-                {
-                    "url": "https://i.ytimg.com/vi/ImKY6TZEyrI/sddefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCghqEJQEGHgg6AJIWg&rs=AMzJL3lPQ7mk-ERMxvR3XU0MwzeWOYhNdQ",
-                    "width": 400,
-                    "height": 225
-                }
-            ]
-        }, res, console.log).then(() => {
-            console.log("fin")
-            // stream.pipe(res, { end: true })
-            // console.log(res)
-            // fs.writeFileSync("./ytm_search_result.json", JSON.stringify(res))
-        })
-    }
-
-    // Envoyer la réponse
-    // res.end('Hello, Wrld!\n');
-});
-
-// Définir le port sur lequel le serveur écoute
-const PORT = 3000;
-
-// Démarrer le serveur
-server.listen(PORT, () => {
-  console.log(`Server running at http://192.168.1.119:${PORT}/`);
-});
+module.exports = YTMClient;
