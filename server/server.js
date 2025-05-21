@@ -13,7 +13,7 @@ const YTMClient = require("./youtube_extractor")
 const c = new YTMClient()
 
 app.get('/', (req, res) => {
-  res.send('Welcome to the Mew server !');
+  res.send('Welcome to the Mew server ! rdn : ' + Math.random());
 });
 
 app.get('/search_suggestions/:query', (req, res) => {
@@ -23,8 +23,9 @@ app.get('/search_suggestions/:query', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(results));
     }).catch(err => {
+        console.log(err)
         res.status(400);
-        res.end(err);
+        res.end(err.toString());
     })
 })
 
@@ -35,8 +36,9 @@ app.get('/search/:query', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(results));
     }).catch(err => {
+        console.log(err)
         res.status(400);
-        res.end(err);
+        res.end(err.toString());
     })
 })
 
