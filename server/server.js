@@ -1,10 +1,8 @@
-
-
 const express = require('express');
 const http = require('http');
 const fs = require('fs');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 
 // Lire les fichiers de certificat
@@ -16,7 +14,7 @@ const c = new YTMClient()
 
 // Définir une route pour la racine
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+  res.send('Welcome to the Mew server !');
 });
 
 app.get('/search_suggestion/:query', (req, res) => {
