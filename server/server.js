@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
   res.send('Welcome to the Mew server !');
 });
 
-app.get('/search_suggestion/:query', (req, res) => {
+app.get('/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
     c.searchSuggestions(query).then(results => {
         res.status(200);
@@ -50,7 +50,7 @@ app.post('/download_video', (req, res) => {
 const httpServer = http.createServer(app);
 
 // Démarrer le serveur
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, "::", () => {
   console.log(`Server running at http://localhost:${PORT}/`);
 });
 
