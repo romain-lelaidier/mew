@@ -5,14 +5,13 @@ const app = express();
 const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 
-// Lire les fichiers de certificat
+// HTTPS credentials
 // const privateKey = fs.readFileSync('server.key', 'utf8');
 // const certificate = fs.readFileSync('server.cert', 'utf8');
 // const credentials = { key: privateKey, cert: certificate };
 
 const c = new YTMClient()
 
-// Définir une route pour la racine
 app.get('/', (req, res) => {
   res.send('Welcome to the Mew server !');
 });
@@ -41,15 +40,16 @@ app.get('/search/:query', (req, res) => {
     })
 })
 
-app.post('/download_video', (req, res) => {
-    // const id = req.params.id;
-    // c.downloadVideo(id, res, (progress) => {})
+app.get('/download_video/:id', (req, res) => {
+    const id = req.params.id;
+console.log(id);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Disposition', 'attachment');
+    c.downloadVideo({ id }, res, (progress) => {})
 })
 
-// Créer un serveur HTTPS
-const httpServer = http.createServer(app);
 
-// Démarrer le serveur
+const httpServer = http.createServer(app);
 httpServer.listen(PORT, "::", () => {
   console.log(`Server running at http://localhost:${PORT}/`);
 });
@@ -88,13 +88,5 @@ const server = require("http").createServer((req, res) => {
 
     // Envoyer la réponse
     // res.end('Hello, Wrld!\n');
-});
-
-// Définir le port sur lequel le serveur écoute
-const PORT = 3000;
-
-// Démarrer le serveur
-server.listen(PORT, () => {
-  console.log(`Server running at http://192.168.1.119:${PORT}/`);
 });
 */
