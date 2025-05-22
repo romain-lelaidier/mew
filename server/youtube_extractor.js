@@ -88,18 +88,26 @@ class YTMClient {
                         let musicResults = [];
                         cts[1].searchSuggestionsSectionRenderer.contents.forEach(musicObj => {
                             const item = musicObj.musicResponsiveListItemRenderer
+                            const extractText = (i, j) => item.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
                             const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
                             if ("watchEndpoint" in item.navigationEndpoint) {
                                 musicResults.push({
                                     type: "VIDEO",
                                     id: item.navigationEndpoint.watchEndpoint.videoId,
                                     thumbnails,
+                                    title: extractText(0, 0),
+                                    artist: extractText(1, 2),
+                                    views: extractText(1, 4),
+                                    album: extractText(2, 0)
                                 })
                             } else if ("browseEndpoint" in item.navigationEndpoint) {
                                 musicResults.push({
                                     type: "ALBUM",
                                     id: item.navigationEndpoint.browseEndpoint.browseId,
                                     thumbnails,
+                                    title: extractText(0, 0),
+                                    artist: extractText(1, 0),
+                                    year: extractText(1, 2)
                                 })
                             }
                         })
@@ -167,6 +175,7 @@ class YTMClient {
                                 if (realType != null) {
                                     const type = realType.substring(realType.indexOf("TYPE_") + 5);
                                     if (type == "VIDEO") {
+                                        // to do : identify each type (use regex) because the indices may differ with videos
                                         musicResults.push({
                                             top: true,
                                             type,
@@ -174,7 +183,7 @@ class YTMClient {
                                             title: item.title.runs[0].text,
                                             artist: item.subtitle.runs[2].text,
                                             views: item.subtitle.runs[4].text,
-                                            duration: item.subtitle.runs[6].text,
+                                            duration: item.subtitle.runs[6]?.text,
                                             thumbnails
                                         })
                                     } else if (type == "ALBUM") {
