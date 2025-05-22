@@ -57,6 +57,27 @@ class YTMClient {
         }
     }
 
+    extractMusicInfo(type, flexColumns) {
+        const extractText = (i, j) => flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
+        const info = {
+            title: extractText(0, 0)
+        }
+        for (let i = 1; i < flexColumns.length; i++) {
+            if ("runs" in flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
+                for (const run of flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+                    if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
+                        info.artist = run.text;
+                    }
+                    if (Object.keys(run).length == 1) {
+                        const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+                        if (yearMatch) info.year = parseInt(yearMatch[0])
+                    }
+                }
+            }
+        }
+        return info;
+    }
+
     searchSuggestions(query) {
         return new Promise((resolve, reject) => {
             if (query.length <= 3) {
@@ -88,27 +109,22 @@ class YTMClient {
                         let musicResults = [];
                         cts[1].searchSuggestionsSectionRenderer.contents.forEach(musicObj => {
                             const item = musicObj.musicResponsiveListItemRenderer
-                            const extractText = (i, j) => item.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
                             const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-                            if ("watchEndpoint" in item.navigationEndpoint) {
-                                musicResults.push({
-                                    type: "VIDEO",
-                                    id: item.navigationEndpoint.watchEndpoint.videoId,
-                                    thumbnails,
-                                    title: extractText(0, 0),
-                                    artist: extractText(1, 2),
-                                    views: extractText(1, 4),
-                                    album: extractText(2, 0)
-                                })
-                            } else if ("browseEndpoint" in item.navigationEndpoint) {
-                                musicResults.push({
-                                    type: "ALBUM",
-                                    id: item.navigationEndpoint.browseEndpoint.browseId,
-                                    thumbnails,
-                                    title: extractText(0, 0),
-                                    artist: extractText(1, 0),
-                                    year: extractText(1, 2)
-                                })
+                            let type = null;
+                            if ("watchEndpoint" in item.navigationEndpoint) type = "VIDEO";
+                            else if ("browseEndpoint" in item.navigationEndpoint) {
+                                if (item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") type = "ARTIST";
+                                if (item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ALBUM") type = "ALBUM";
+                            }
+                            if (type) {
+                                const musicResult = { type, thumbnails };
+                                if (type == "VIDEO") musicResult.id = item.navigationEndpoint.watchEndpoint.videoId;
+                                if (type == "ALBUM") musicResult.id = item.navigationEndpoint.browseEndpoint.browseId;
+                                const info = this.extractMusicInfo(type, item.flexColumns);
+                                for (const [key, value] of Object.entries(info)) {
+                                    musicResult[key] = value;
+                                }
+                                musicResults.push(musicResult);
                             }
                         })
     
@@ -124,26 +140,6 @@ class YTMClient {
                 }
             }).catch(reject)
         })
-    }
-
-    extractVideoInfo(flexColumns) {
-        const extractText = (i, j) => flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
-        if (flexColumns.length == 2) {
-            return {
-                title: extractText(0, 0),
-                artist: extractText(1, 2),
-                views: extractText(1, 4),
-                duration: extractText(1, 6)
-            }
-        } else if (flexColumns.length == 3) {
-            return {
-                title: extractText(0, 0),
-                artist: extractText(1, 0),
-                album: extractText(1, 2),
-                duration: extractText(1, 4),
-                views: extractText(2, 0),
-            }
-        }
     }
 
     search(query) {
@@ -204,7 +200,7 @@ class YTMClient {
                                     const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
                                     if ("playlistItemData" in item) {
                                         // video
-                                        const videoInfo = this.extractVideoInfo(item.flexColumns);
+                                        const videoInfo = this.extractMusicInfo("VIDEO", item.flexColumns);
                                         if (videoInfo.duration) {
                                             musicResults.push({
                                                 type: "VIDEO",
