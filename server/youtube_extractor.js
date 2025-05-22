@@ -119,7 +119,7 @@ class YTMClient {
                             if (type) {
                                 const musicResult = { type, thumbnails };
                                 if (type == "VIDEO") musicResult.id = item.navigationEndpoint.watchEndpoint.videoId;
-                                if (type == "ALBUM") musicResult.id = item.navigationEndpoint.browseEndpoint.browseId;
+                                if (type == "ALBUM" || type == "ARTIST") musicResult.id = item.navigationEndpoint.browseEndpoint.browseId;
                                 const info = this.extractMusicInfo(type, item.flexColumns);
                                 for (const [key, value] of Object.entries(info)) {
                                     musicResult[key] = value;
