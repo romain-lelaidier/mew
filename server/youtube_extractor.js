@@ -57,25 +57,76 @@ class YTMClient {
         }
     }
 
-    extractMusicInfo(type, flexColumns) {
-        const extractText = (i, j) => flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
-        const info = {
-            title: extractText(0, 0)
+    extractRendererTypeAndId(renderer) {
+        if ("navigationEndpoint" in renderer || "onTap" in renderer) {
+            const endpoint = "navigationEndpoint" in renderer ? renderer.navigationEndpoint : renderer.onTap;
+            if ("watchEndpoint" in endpoint)
+                return ["VIDEO", endpoint.watchEndpoint.videoId];
+            else if ("browseEndpoint" in endpoint) {
+                if (endpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST")
+                    return ["ARTIST", endpoint.browseEndpoint.browseId];
+                if (endpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ALBUM")
+                    return ["ALBUM", endpoint.browseEndpoint.browseId];
+            }
+        } else {
+            if ("playlistItemData" in renderer && "videoId" in renderer.playlistItemData)
+                return ["VIDEO",  renderer.playlistItemData.videoId];
         }
-        for (let i = 1; i < flexColumns.length; i++) {
-            if ("runs" in flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
-                for (const run of flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-                    if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
-                        info.artist = run.text;
-                    }
-                    if (Object.keys(run).length == 1) {
-                        const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
-                        if (yearMatch) info.year = parseInt(yearMatch[0])
+        return [null, null]
+    }
+
+    extractRendererInfo(renderer) {
+        let [type, id] = this.extractRendererTypeAndId(renderer);
+        if (type) {
+            const extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
+            const musicResult = { 
+                type, id,
+                thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
+                title: extractText(0, 0)
+            };
+            
+            for (let i = 1; i < renderer.flexColumns.length; i++) {
+                if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
+                    for (const run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+                        if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
+                            musicResult.artist = run.text;
+                        }
+                        if (Object.keys(run).length == 1) {
+                            const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+                            if (yearMatch) musicResult.year = parseInt(yearMatch[0])
+                        }
                     }
                 }
             }
+
+            return musicResult;
         }
-        return info;
+    }
+
+    extractTopRendererInfo(renderer) {
+let [type, id] = this.extractRendererTypeAndId(renderer);
+        if (type) {
+            const musicResult = { 
+                type, id,
+                thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails
+            };
+            
+            // for (let i = 1; i < renderer.flexColumns.length; i++) {
+            //     if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
+            //         for (const run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+            //             if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
+            //                 musicResult.artist = run.text;
+            //             }
+            //             if (Object.keys(run).length == 1) {
+            //                 const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+            //                 if (yearMatch) musicResult.year = parseInt(yearMatch[0])
+            //             }
+            //         }
+            //     }
+            // }
+
+            return musicResult;
+        }
     }
 
     searchSuggestions(query) {
@@ -108,24 +159,9 @@ class YTMClient {
                         // music results (quick video and albums results)
                         let musicResults = [];
                         cts[1].searchSuggestionsSectionRenderer.contents.forEach(musicObj => {
-                            const item = musicObj.musicResponsiveListItemRenderer
-                            const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-                            let type = null;
-                            if ("watchEndpoint" in item.navigationEndpoint) type = "VIDEO";
-                            else if ("browseEndpoint" in item.navigationEndpoint) {
-                                if (item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") type = "ARTIST";
-                                if (item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ALBUM") type = "ALBUM";
-                            }
-                            if (type) {
-                                const musicResult = { type, thumbnails };
-                                if (type == "VIDEO") musicResult.id = item.navigationEndpoint.watchEndpoint.videoId;
-                                if (type == "ALBUM" || type == "ARTIST") musicResult.id = item.navigationEndpoint.browseEndpoint.browseId;
-                                const info = this.extractMusicInfo(type, item.flexColumns);
-                                for (const [key, value] of Object.entries(info)) {
-                                    musicResult[key] = value;
-                                }
-                                musicResults.push(musicResult);
-                            }
+                            const renderer = musicObj.musicResponsiveListItemRenderer;
+                            const musicResult = this.extractRendererInfo(renderer);
+                            if (musicResult) musicResults.push(musicResult);
                         })
     
                         resolve({
@@ -143,7 +179,6 @@ class YTMClient {
     }
 
     search(query) {
-        console.log("Search:", query)
         return new Promise((resolve, reject) => {
             axios.post(
                 "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
@@ -162,61 +197,18 @@ class YTMClient {
                         let musicResults = [];
                         cts2.forEach(shelf => {
                             if ("musicCardShelfRenderer" in shelf) {
-                                const item = shelf.musicCardShelfRenderer;
-                                const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-                                const endpoint = item.title.runs[0].navigationEndpoint;
-                                const realType = "browseEndpoint" in endpoint 
-                                    ? endpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-                                    : ("watchEndpoint" in endpoint ? "TYPE_VIDEO" : null);
-                                if (realType != null) {
-                                    const type = realType.substring(realType.indexOf("TYPE_") + 5);
-                                    if (type == "VIDEO") {
-                                        // to do : identify each type (use regex) because the indices may differ with videos
-                                        musicResults.push({
-                                            top: true,
-                                            type,
-                                            id: endpoint.watchEndpoint.videoId,
-                                            title: item.title.runs[0].text,
-                                            artist: item.subtitle.runs[2].text,
-                                            views: item.subtitle.runs[4].text,
-                                            duration: item.subtitle.runs[6]?.text,
-                                            thumbnails
-                                        })
-                                    } else if (type == "ALBUM") {
-                                        musicResults.push({
-                                            top: true,
-                                            type,
-                                            id: endpoint.browseEndpoint.browseId,
-                                            album: item.title.runs[0].text,
-                                            artist: item.subtitle.runs[2].text,
-                                            thumbnails
-                                        })
-                                    }
+                                const renderer = shelf.musicCardShelfRenderer;
+                                const musicResult = this.extractTopRendererInfo(renderer);
+                                if (musicResult) {
+                                    musicResult.top = true;
+                                    musicResults.push(musicResult);
                                 }
                             }
-                            else if ("musicShelfRenderer" in shelf) {
+                            if ("musicShelfRenderer" in shelf) {
                                 shelf.musicShelfRenderer.contents.forEach(musicObj => {
-                                    const item = musicObj.musicResponsiveListItemRenderer;
-                                    const thumbnails = item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-                                    if ("playlistItemData" in item) {
-                                        // video
-                                        const videoInfo = this.extractMusicInfo("VIDEO", item.flexColumns);
-                                        if (videoInfo.duration) {
-                                            musicResults.push({
-                                                type: "VIDEO",
-                                                id: item.playlistItemData.videoId,
-                                                info: videoInfo,
-                                                thumbnails,
-                                            })
-                                        }
-                                    } else if ("navigationEndpoint" in item && "browseEndpoint" in item.navigationEndpoint) {
-                                        const realType = item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType;
-                                        musicResults.push({
-                                            type: realType.substring(realType.indexOf("TYPE_") + 5),
-                                            id: item.navigationEndpoint.browseEndpoint.browseId,
-                                            thumbnails,
-                                        })
-                                    }
+                                    const renderer = musicObj.musicResponsiveListItemRenderer;
+                                    const musicResult = this.extractRendererInfo(renderer);
+                                    if (musicResult) musicResults.push(musicResult);
                                 })
                             }
                         })
