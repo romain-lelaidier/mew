@@ -6,12 +6,22 @@ app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 
+const MYSQL_ROOT_PASSWORD = fs.existsSync("mysql_root_password.txt")
+    ? fs.readFileSync("mysql_root_password.txt")
+    : process.env.MYSQL_ROOT_PASSWORD;
+
 // HTTPS credentials
 // const privateKey = fs.readFileSync('server.key', 'utf8');
 // const certificate = fs.readFileSync('server.cert', 'utf8');
 // const credentials = { key: privateKey, cert: certificate };
 
-const c = new YTMClient()
+const c = new YTMClient({
+    host: 'localhost',
+    user: 'root',
+    password: MYSQL_ROOT_PASSWORD,
+    database: 'mew'
+})
+c.init()
 
 function bres(res, code, contentType, data) {
     // basic response

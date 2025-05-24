@@ -1,6 +1,7 @@
-var axios = require("axios")
-var fs = require('fs')
-var cp = require('child_process');
+const axios = require("axios")
+const fs = require('fs')
+const cp = require('child_process');
+const PlayerDB = require('./player_db')
 
 function parseQueryString(qs) {
     var params = new URLSearchParams(qs);
@@ -37,17 +38,29 @@ function extractBracketsCode(beginIndex, jsCode) {
 }
 
 class YTPlayer {
-    constructor(pid, lang) {
+    constructor(pid, plg) {
         this.pid = pid;
-        this.lang = lang;
+        this.plg = plg;
         this.extracted = false;
     }
 
-    buildUrl() {
-        return `https://music.youtube.com/s/player/${this.pid}/player_ias.vflset/${this.lang}/base.js`;
+    toString() {
+        if (this.extracted == true) 
+            return JSON.stringify({
+                pid: this.pid,
+                plg: this.plg,
+                sts: this.sts,
+                sfc: this.sfc,
+                nfc: this.nfc,
+            });
+        return '{}';
     }
 
-    download() {
+    buildUrl() {
+        return `https://music.youtube.com/s/player/${this.pid}/player_ias.vflset/${this.plg}/base.js`;
+    }
+
+    downloadFromWeb() {
         return new Promise((resolve, reject) => {
             axios.get(this.buildUrl())
             .then(res => {
@@ -86,7 +99,7 @@ class YTPlayer {
             coreCode = coreCode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
         }
 
-        this.sigFuncCode = `B=>{var ${H}={${Hcode}};${coreCode}}`
+        this.sfc = `B=>{var ${H}={${Hcode}};${coreCode}}`
     }
 
     extractNFunctionCodeFromName(nFuncName) {
@@ -107,61 +120,73 @@ class YTPlayer {
         var match = coreCode.match(`;\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*(?:(["\\'])undefined\\1|${Y}\\[${undefinedIdx}\\])\\s*\\)\\s*return\\s+${B};`)
         var fixedNFuncCode = coreCode.replace(match[0], ";")
 
-        this.nFuncCode = `B=>{var Y='${matchYobj[1]}'.split(';');${fixedNFuncCode}}`
+        this.nfc = `B=>{var Y='${matchYobj[1]}'.split(';');${fixedNFuncCode}}`
     }
 
-    downloadAndParse() {
+    dbLoad(pdb) {
+        return pdb.loadPlayer(this)
+    }
+
+    downloadAndParse(pdb) {
         return new Promise((resolve, reject) => {
-            this.download().then(() => {
-                try {
-                    // extracting signature timestamp from player (to indicate API which player version we're using)
-                    var matchSTS = this.js.match(/signatureTimestamp:([0-9]+)[,}]/)
-                    if (!matchSTS) return reject("Could not find signature timestamp from player");
-                    this.sts = matchSTS[1];
-
-                    var sigregexps = [
-                        // /\b(?P<var>[a-zA-Z0-9_$]+)&&\((?P=var)=(?P<sig>[a-zA-Z0-9_$]{2,})\(decodeURIComponent\((?P=var)\)\)/,
-                        [ /\b([a-zA-Z0-9_$]+)&&\(\1=([a-zA-Z0-9_$]{2,})\(decodeURIComponent\(\1\)\)/, 2 ],
-
-                        // /(?P<sig>[a-zA-Z0-9_$]+)\s*=\s*function\(\s*(?P<arg>[a-zA-Z0-9_$]+)\s*\)\s*{\s*(?P=arg)\s*=\s*(?P=arg)\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+(?P=arg)\.join\(\s*""\s*\)/,
-                        // [ /([a-zA-Z0-9_$]+)\s*=\s*function\(\s*([a-zA-Z0-9_$]+)\s*\)\s*{\s*\2\s*=\s*\2\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+\2\.join\(\s*""\s*\)/, 1 ],
-
-                        // /(?:\b|[^a-zA-Z0-9_$])(?P<sig>[a-zA-Z0-9_$]{2,})\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\)(?:;[a-zA-Z0-9_$]{2}\.[a-zA-Z0-9_$]{2}\(a,[0-9]+\))?/,
-                        // // Old patterns
-                        // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // '\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // '\bm=(?P<sig>[a-zA-Z0-9$]{2,})\(decodeURIComponent\(h\.s\)\)',
-                        // // Obsolete patterns
-                        // '("|\')signature\x01\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // '\.sig\|\|(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // 'yt\.akamaized\.net/\)\s*\|\|\s*.*?\s*[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?:encodeURIComponent\s*\()?\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                        // '\bc\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*\([^)]*\)\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
-                    ];
-                    var sigFuncName;
-                    for (var sigregexp of sigregexps) {
-                        var match = this.js.match(sigregexp[0]);
-                        if (match) {
-                            sigFuncName = match[sigregexp[1]];
-                            break;
+            this.dbLoad(pdb).then(res => {
+                resolve()
+            }).catch(err => {
+                console.log("Loading failed")
+                this.downloadFromWeb().then(() => {
+                    try {
+                        // extracting signature timestamp from player (to indicate API which player version we're using)
+                        var matchSTS = this.js.match(/signatureTimestamp:([0-9]+)[,}]/)
+                        if (!matchSTS) return reject("Could not find signature timestamp from player");
+                        this.sts = matchSTS[1];
+    
+                        var sigregexps = [
+                            // /\b(?P<var>[a-zA-Z0-9_$]+)&&\((?P=var)=(?P<sig>[a-zA-Z0-9_$]{2,})\(decodeURIComponent\((?P=var)\)\)/,
+                            [ /\b([a-zA-Z0-9_$]+)&&\(\1=([a-zA-Z0-9_$]{2,})\(decodeURIComponent\(\1\)\)/, 2 ],
+    
+                            // /(?P<sig>[a-zA-Z0-9_$]+)\s*=\s*function\(\s*(?P<arg>[a-zA-Z0-9_$]+)\s*\)\s*{\s*(?P=arg)\s*=\s*(?P=arg)\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+(?P=arg)\.join\(\s*""\s*\)/,
+                            // [ /([a-zA-Z0-9_$]+)\s*=\s*function\(\s*([a-zA-Z0-9_$]+)\s*\)\s*{\s*\2\s*=\s*\2\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+\2\.join\(\s*""\s*\)/, 1 ],
+    
+                            // /(?:\b|[^a-zA-Z0-9_$])(?P<sig>[a-zA-Z0-9_$]{2,})\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\)(?:;[a-zA-Z0-9_$]{2}\.[a-zA-Z0-9_$]{2}\(a,[0-9]+\))?/,
+                            // // Old patterns
+                            // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // '\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // '\bm=(?P<sig>[a-zA-Z0-9$]{2,})\(decodeURIComponent\(h\.s\)\)',
+                            // // Obsolete patterns
+                            // '("|\')signature\x01\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // '\.sig\|\|(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // 'yt\.akamaized\.net/\)\s*\|\|\s*.*?\s*[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?:encodeURIComponent\s*\()?\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                            // '\bc\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*\([^)]*\)\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        ];
+                        var sigFuncName;
+                        for (var sigregexp of sigregexps) {
+                            var match = this.js.match(sigregexp[0]);
+                            if (match) {
+                                sigFuncName = match[sigregexp[1]];
+                                break;
+                            }
                         }
+                        if (!sigFuncName) return reject("Could not extract signature cipher function name");
+    
+                        // var match = player.match(/(?xs)[;\n](?:(?P<f>function\s+)|(?:var\s+)?)(?P<funcname>[a-zA-Z0-9_$]+)\s*(?(f)|=\s*function\s*)\((?P<argname>[a-zA-Z0-9_$]+)\)\s*\{(?:(?!\}[;\n]).)+\}\s*catch\(\s*[a-zA-Z0-9_$]+\s*\)\s*\{\s*return\s+%s\[%d\]\s*\+\s*(?P=argname)\s*\}\s*return\s+[^}]+\}[;\n]/)
+                        var matchNFuncName = this.js.match(/\nvar ([a-zA-Z][a-zA-Z0-9]+)=\[([a-zA-Z][a-zA-Z0-9]+)\];/)
+                        if (!matchNFuncName) return reject("Could not extract n cipher function name");
+                        var nFuncName = matchNFuncName[2];
+    
+                        this.extractSigFunctionCodeFromName(sigFuncName);
+                        this.extractNFunctionCodeFromName(nFuncName)
+    
+                        this.extracted = true;
+
+                        pdb.savePlayer(this);
+
+                        resolve()
+                    } catch(err) {
+                        reject(err)
                     }
-                    if (!sigFuncName) return reject("Could not extract signature cipher function name");
-
-                    // var match = player.match(/(?xs)[;\n](?:(?P<f>function\s+)|(?:var\s+)?)(?P<funcname>[a-zA-Z0-9_$]+)\s*(?(f)|=\s*function\s*)\((?P<argname>[a-zA-Z0-9_$]+)\)\s*\{(?:(?!\}[;\n]).)+\}\s*catch\(\s*[a-zA-Z0-9_$]+\s*\)\s*\{\s*return\s+%s\[%d\]\s*\+\s*(?P=argname)\s*\}\s*return\s+[^}]+\}[;\n]/)
-                    var matchNFuncName = this.js.match(/\nvar ([a-zA-Z][a-zA-Z0-9]+)=\[([a-zA-Z][a-zA-Z0-9]+)\];/)
-                    if (!matchNFuncName) return reject("Could not extract n cipher function name");
-                    var nFuncName = matchNFuncName[2];
-
-                    this.extractSigFunctionCodeFromName(sigFuncName);
-                    this.extractNFunctionCodeFromName(nFuncName)
-
-                    this.extracted = true;
-                    resolve()
-                } catch(err) {
-                    reject(err)
-                }
-            }).catch(reject);
+                }).catch(reject);
+            })
         })
     }
 
@@ -169,11 +194,11 @@ class YTPlayer {
         if (!this.extracted) throw "Player data is not extracted"
 
         var sc = parseQueryString(format.signatureCipher);
-        var url = `${sc.url}&${sc.sp || "signature"}=${encodeURIComponent((eval(this.sigFuncCode))(sc.s))}`;
+        var url = `${sc.url}&${sc.sp || "signature"}=${encodeURIComponent((eval(this.sfc))(sc.s))}`;
         var urlParams = parseQueryString(url);
 
         if ('n' in urlParams) {
-            var nDecrypted = eval(this.nFuncCode)(urlParams.n)
+            var nDecrypted = eval(this.nfc)(urlParams.n)
             url = replaceUrlParam(url, 'n', nDecrypted)
         }
         return url
@@ -183,7 +208,7 @@ class YTPlayer {
 
 class YTMClient {
 
-    constructor() {
+    constructor(dbConfig) {
         this.context = {
             "client": {
                 "hl": "fr",
@@ -234,6 +259,56 @@ class YTMClient {
                 "consistencyTokenJars": []
             }
         }
+        this.pdb = new PlayerDB(dbConfig)
+
+    // // Function to create a table
+    // function createTable(connection) {
+    //     try {
+    //         await connection.query(`
+    //         CREATE TABLE IF NOT EXISTS users (
+    //             id INT AUTO_INCREMENT PRIMARY KEY,
+    //             name VARCHAR(255) NOT NULL,
+    //             email VARCHAR(255) NOT NULL UNIQUE
+    //         )
+    //         `);
+    //         console.log('Table created successfully');
+    //     } catch (error) {
+    //         console.error('Error creating table:', error);
+    //     } finally {
+    //         await connection.end();
+    //     }
+    // }
+    
+    // // Function to insert data into the table
+    // function insertData() {
+    //     const connection = await mysql.createConnection(dbConfig);
+    //     try {
+    //         await connection.query(`INSERT INTO users (name, email) VALUES ('John Doe', 'john.doe@example.com')`);
+    //         console.log('Data inserted successfully');
+    //     } catch (error) {
+    //         console.error('Error inserting data:', error);
+    //     } finally {
+    //         await connection.end();
+    //     }
+    // }
+    
+    // // Function to query data from the table
+    // function queryData() {
+    //     const connection = await mysql.createConnection(dbConfig);
+    //     try {
+    //         const [rows] = await connection.query('SELECT * FROM users');
+    //         console.log('Data retrieved successfully:', rows);
+    //     } catch (error) {
+    //         console.error('Error querying data:', error);
+    //     } finally {
+    //         await connection.end();
+    //     }
+    // }
+    }
+
+    async init() {
+        this.pdb.init()
+        console.log("Connected to database.")
     }
 
     extractRendererTypeAndId(renderer) {
@@ -497,7 +572,7 @@ class YTMClient {
                 if (!match) return reject("Error downloading player: player URL not found in html");
 
                 var player = new YTPlayer(match[1], match[2]);
-                player.downloadAndParse().then(() => {
+                player.downloadAndParse(this.pdb).then(() => {
                     resolve(player)
                 }).catch(reject)
             })
@@ -566,13 +641,5 @@ class YTMClient {
     }
 
 }
-
-// var c = new YTMClient();
-// c.extractVideo({ id: "WqajS-Vlv4k" }).then(info => {
-//     resolve(info)
-//     fs.writeFileSync("info.json", JSON.stringify(info))
-// }).catch(err => {
-//     console.log("Error:", err)
-// })
 
 module.exports = YTMClient;
