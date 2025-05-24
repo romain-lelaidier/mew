@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const fs = require('fs');
 const app = express();
+app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 
@@ -12,83 +13,69 @@ const YTMClient = require("./youtube_extractor")
 
 const c = new YTMClient()
 
+function bres(res, code, contentType, data) {
+    // basic response
+    res.status(code);
+    res.setHeader('Content-Type', contentType);
+    res.end(data)
+}
+
+function ares(res, condition, message) {
+    // assert condition is verified ; otherwise, ends response with message
+    // returns condition
+    if (!condition) {
+        bres(res, 400, 'text/plain', message)
+    }
+    return condition;
+}
+
+function jres(res, obj) {
+    // resolves response with JSON object
+    bres(res, 200, 'application/json', JSON.stringify(obj))
+}
+
 app.get('/', (req, res) => {
-  res.send('Welcome to the Mew server ! rdn : ' + Math.random());
+    bres(res, 200, 'text/plain', 'Welcome to the Mew server ! rdn : ' + Math.random())
 });
 
-app.get('/search_suggestions/:query', (req, res) => {
+app.get('/api/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
     c.searchSuggestions(query).then(results => {
-        res.status(200);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(results));
+        jres(res, results)
     }).catch(err => {
         console.log(err)
-        res.status(400);
-        res.end(err.toString());
+        bres(res, 500, 'text/plain', err.toString())
     })
 })
 
-app.get('/search/:query', (req, res) => {
+app.get('/api/search/:query', (req, res) => {
     const query = req.params.query;
     c.search(query).then(results => {
-        res.status(200);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(results));
+        jres(res, results)
     }).catch(err => {
         console.log(err)
-        res.status(400);
-        res.end(err.toString());
+        bres(res, 500, 'text/plain', err.toString())
     })
 })
 
-app.get('/download_video/:id', (req, res) => {
-    const id = req.params.id;
-console.log(id);
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Disposition', 'attachment');
-    c.downloadVideo({ id }, res, (progress) => {})
-})
+app.post('/api/extract_video/', (req, res) => {
+    var valid = ares(res, "info" in req.body, 'No "info" field provided')
+        && ares(res, "id" in req.body.info, 'No "id" field provided')
+        && ares(res, req.body.info.id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
 
+    c.extractVideo(req.body.info).then(info => {
+        jres(res, info)
+    }).catch(err => {
+        bres(res, 500, 'text/plain', err.toString())
+    })
+    // const info = req.params.id;
+    // res.setHeader('Content-Type', 'audio/mpeg');
+    // res.setHeader('Content-Disposition', 'attachment');
+    // c.downloadVideo({ id }, res, (progress) => {})
+})
 
 const httpServer = http.createServer(app);
 httpServer.listen(PORT, "::", () => {
   console.log(`Server running at http://localhost:${PORT}/`);
 });
-
-/*
-const server = require("http").createServer((req, res) => {
-    // Définir le code de statut HTTP et le type de contenu
-    if (req.url == "/audio.mp3") {
-        console.log("envoi")
-        res.writeHead(200, { 
-            "Content-Type": "audio/mpeg",
-            "Content-Disposition": "attachment"
-        });
-        c.downloadVideo({
-            "top": true,
-            "type": "VIDEO",
-            "id": "ImKY6TZEyrI",
-            "title": "Fade Into You (Official Music Video)",
-            "artist": "Mazzy Star",
-            "views": "115 M de vues",
-            "duration": "4:22",
-            "thumbnails": [
-                {
-                    "url": "https://i.ytimg.com/vi/ImKY6TZEyrI/sddefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCghqEJQEGHgg6AJIWg&rs=AMzJL3lPQ7mk-ERMxvR3XU0MwzeWOYhNdQ",
-                    "width": 400,
-                    "height": 225
-                }
-            ]
-        }, res, console.log).then(() => {
-            console.log("fin")
-            // stream.pipe(res, { end: true })
-            // console.log(res)
-            // fs.writeFileSync("./ytm_search_result.json", JSON.stringify(res))
-        })
-    }
-
-    // Envoyer la réponse
-    // res.end('Hello, Wrld!\n');
-});
-*/

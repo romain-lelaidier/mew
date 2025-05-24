@@ -1,6 +1,185 @@
-const axios = require("axios")
-const fs = require('fs')
-const cp = require('child_process')
+var axios = require("axios")
+var fs = require('fs')
+var cp = require('child_process');
+
+function parseQueryString(qs) {
+    var params = new URLSearchParams(qs);
+    var object = {};
+    for (var [key, value] of params.entries()) {
+        object[key] = value;
+    }
+    return object;
+}
+
+function replaceUrlParam(url, paramName, paramValue) {
+    if (paramValue == null) {
+        paramValue = '';
+    }
+    var pattern = new RegExp('\\b('+paramName+'=).*?(&|#|$)');
+    if (url.search(pattern)>=0) {
+        return url.replace(pattern,'$1' + paramValue + '$2');
+    }
+    url = url.replace(/[?#]$/,'');
+    return url + (url.indexOf('?')>0 ? '&' : '?') + paramName + '=' + paramValue;
+}
+
+function extractBracketsCode(beginIndex, jsCode) {
+    // beginIndex-1 -> {
+    let index = beginIndex;
+    let depth = 1;
+    while (depth > 0 && index < jsCode.length) {
+        if (jsCode[index] == '{') depth++;
+        if (jsCode[index] == '}') depth--;
+        index++;
+    }
+    var endIndex = index - 1;
+    return jsCode.substring(beginIndex, endIndex)
+}
+
+class YTPlayer {
+    constructor(pid, lang) {
+        this.pid = pid;
+        this.lang = lang;
+        this.extracted = false;
+    }
+
+    buildUrl() {
+        return `https://music.youtube.com/s/player/${this.pid}/player_ias.vflset/${this.lang}/base.js`;
+    }
+
+    download() {
+        return new Promise((resolve, reject) => {
+            axios.get(this.buildUrl())
+            .then(res => {
+                if (res.status != 200) return reject(`Could not download player: status code is ${res.status}`);
+                this.js = res.data;
+                resolve()
+            }).catch(reject)
+        })
+    }
+
+    extractSigFunctionCodeFromName(sigFuncName) {
+        var match = this.js.match(`${sigFuncName}=function\\((\\w+)\\)`);
+        if (!match) throw `Error while extracting player: function ${sigFuncName} not found in JS player code.`
+        var B = match[1];
+        var coreCode = extractBracketsCode(match.index + match[0].length + 1, this.js);
+        var rawInstructions = coreCode.split(';')
+
+        var matchY = rawInstructions[0].match(`${B}=${B}\\[([a-zA-Z]+)\\[([0-9]+)\\]\\]\\(\\1\\[([0-9]+)\\]\\)`)
+        if (!matchY) throw "Error while extracting player: Y not matched in function code";
+        var Y = matchY[1];
+        var matchYobj = this.js.match(`var ${Y}='(.+)'`)
+        if (!matchYobj) throw "Error while extracting player: could not find Y code";
+        var Yobj = matchYobj[1].split(';')
+
+        var matchH = rawInstructions[1].match(`([a-zA-Z]+)\\[${Y}\\[([0-9]+)\\]\\]\\(${B},([0-9])+\\)`)
+        if (!matchH) throw "Error while extracting player: H not matched in function code";
+        var H = matchH[1];
+        var Hcode = extractBracketsCode(this.js.indexOf(`var ${H}=`) + 6 + H.length, this.js).replaceAll('\n', '')
+
+        var matchYrep;
+        while (matchYrep = Hcode.match(`${Y}\\[([0-9]+)\\]`)) {
+            Hcode = Hcode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
+        }
+
+        while (matchYrep = coreCode.match(`${Y}\\[([0-9]+)\\]`)) {
+            coreCode = coreCode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
+        }
+
+        this.sigFuncCode = `B=>{var ${H}={${Hcode}};${coreCode}}`
+    }
+
+    extractNFunctionCodeFromName(nFuncName) {
+        var match = this.js.match(`${nFuncName}=function\\((\\w+)\\)`);
+        if (!match) throw `N Function ${nFuncName} not found in player code`
+        var B = match[1];
+        var coreCode = extractBracketsCode(match.index + match[0].length + 1, this.js);
+
+        var matchY = coreCode.match(`var [a-zA-Z0-9]+=${B}\\[([a-zA-Z0-9]+)\\[`)
+        if (!matchY) throw `N Function is a different form`
+        var Y = matchY[1];
+        var matchYobj = this.js.match(`var ${Y}='(.+)'`)
+        if (!matchYobj) throw "N function Y code was not found in player";
+        var Yobj = matchYobj[1].split(';')
+
+        var undefinedIdx = Yobj.includes('undefined') ? Yobj.indexOf('undefined') : '[0-9]+';
+
+        var match = coreCode.match(`;\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*(?:(["\\'])undefined\\1|${Y}\\[${undefinedIdx}\\])\\s*\\)\\s*return\\s+${B};`)
+        var fixedNFuncCode = coreCode.replace(match[0], ";")
+
+        this.nFuncCode = `B=>{var Y='${matchYobj[1]}'.split(';');${fixedNFuncCode}}`
+    }
+
+    downloadAndParse() {
+        return new Promise((resolve, reject) => {
+            this.download().then(() => {
+                try {
+                    // extracting signature timestamp from player (to indicate API which player version we're using)
+                    var matchSTS = this.js.match(/signatureTimestamp:([0-9]+)[,}]/)
+                    if (!matchSTS) return reject("Could not find signature timestamp from player");
+                    this.sts = matchSTS[1];
+
+                    var sigregexps = [
+                        // /\b(?P<var>[a-zA-Z0-9_$]+)&&\((?P=var)=(?P<sig>[a-zA-Z0-9_$]{2,})\(decodeURIComponent\((?P=var)\)\)/,
+                        [ /\b([a-zA-Z0-9_$]+)&&\(\1=([a-zA-Z0-9_$]{2,})\(decodeURIComponent\(\1\)\)/, 2 ],
+
+                        // /(?P<sig>[a-zA-Z0-9_$]+)\s*=\s*function\(\s*(?P<arg>[a-zA-Z0-9_$]+)\s*\)\s*{\s*(?P=arg)\s*=\s*(?P=arg)\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+(?P=arg)\.join\(\s*""\s*\)/,
+                        // [ /([a-zA-Z0-9_$]+)\s*=\s*function\(\s*([a-zA-Z0-9_$]+)\s*\)\s*{\s*\2\s*=\s*\2\.split\(\s*""\s*\)\s*;\s*[^}]+;\s*return\s+\2\.join\(\s*""\s*\)/, 1 ],
+
+                        // /(?:\b|[^a-zA-Z0-9_$])(?P<sig>[a-zA-Z0-9_$]{2,})\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\)(?:;[a-zA-Z0-9_$]{2}\.[a-zA-Z0-9_$]{2}\(a,[0-9]+\))?/,
+                        // // Old patterns
+                        // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // '\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // '\bm=(?P<sig>[a-zA-Z0-9$]{2,})\(decodeURIComponent\(h\.s\)\)',
+                        // // Obsolete patterns
+                        // '("|\')signature\x01\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // '\.sig\|\|(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // 'yt\.akamaized\.net/\)\s*\|\|\s*.*?\s*[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?:encodeURIComponent\s*\()?\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // '\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                        // '\bc\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*\([^)]*\)\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(',
+                    ];
+                    var sigFuncName;
+                    for (var sigregexp of sigregexps) {
+                        var match = this.js.match(sigregexp[0]);
+                        if (match) {
+                            sigFuncName = match[sigregexp[1]];
+                            break;
+                        }
+                    }
+                    if (!sigFuncName) return reject("Could not extract signature cipher function name");
+
+                    // var match = player.match(/(?xs)[;\n](?:(?P<f>function\s+)|(?:var\s+)?)(?P<funcname>[a-zA-Z0-9_$]+)\s*(?(f)|=\s*function\s*)\((?P<argname>[a-zA-Z0-9_$]+)\)\s*\{(?:(?!\}[;\n]).)+\}\s*catch\(\s*[a-zA-Z0-9_$]+\s*\)\s*\{\s*return\s+%s\[%d\]\s*\+\s*(?P=argname)\s*\}\s*return\s+[^}]+\}[;\n]/)
+                    var matchNFuncName = this.js.match(/\nvar ([a-zA-Z][a-zA-Z0-9]+)=\[([a-zA-Z][a-zA-Z0-9]+)\];/)
+                    if (!matchNFuncName) return reject("Could not extract n cipher function name");
+                    var nFuncName = matchNFuncName[2];
+
+                    this.extractSigFunctionCodeFromName(sigFuncName);
+                    this.extractNFunctionCodeFromName(nFuncName)
+
+                    this.extracted = true;
+                    resolve()
+                } catch(err) {
+                    reject(err)
+                }
+            }).catch(reject);
+        })
+    }
+
+    decryptFormatStreamUrl(format) {
+        if (!this.extracted) throw "Player data is not extracted"
+
+        var sc = parseQueryString(format.signatureCipher);
+        var url = `${sc.url}&${sc.sp || "signature"}=${encodeURIComponent((eval(this.sigFuncCode))(sc.s))}`;
+        var urlParams = parseQueryString(url);
+
+        if ('n' in urlParams) {
+            var nDecrypted = eval(this.nFuncCode)(urlParams.n)
+            url = replaceUrlParam(url, 'n', nDecrypted)
+        }
+        return url
+    }
+
+}
 
 class YTMClient {
 
@@ -59,7 +238,7 @@ class YTMClient {
 
     extractRendererTypeAndId(renderer) {
         if ("navigationEndpoint" in renderer || "onTap" in renderer) {
-            const endpoint = "navigationEndpoint" in renderer ? renderer.navigationEndpoint : renderer.onTap;
+            var endpoint = "navigationEndpoint" in renderer ? renderer.navigationEndpoint : renderer.onTap;
             if ("watchEndpoint" in endpoint)
                 return ["VIDEO", endpoint.watchEndpoint.videoId];
             else if ("browseEndpoint" in endpoint) {
@@ -78,8 +257,8 @@ class YTMClient {
     extractRendererInfo(renderer) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
         if (type) {
-            const extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
-            const musicResult = { 
+            var extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
+            var musicResult = { 
                 type, id,
                 thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
                 title: extractText(0, 0)
@@ -87,12 +266,12 @@ class YTMClient {
             
             for (let i = 1; i < renderer.flexColumns.length; i++) {
                 if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
-                    for (const run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+                    for (var run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
                         if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
                             musicResult.artist = run.text;
                         }
                         if (Object.keys(run).length == 1) {
-                            const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+                            var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
                             if (yearMatch) musicResult.year = parseInt(yearMatch[0])
                         }
                     }
@@ -104,21 +283,21 @@ class YTMClient {
     }
 
     extractTopRendererInfo(renderer) {
-let [type, id] = this.extractRendererTypeAndId(renderer);
+        let [type, id] = this.extractRendererTypeAndId(renderer);
         if (type) {
-            const musicResult = { 
+            var musicResult = { 
                 type, id,
                 thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails
             };
             
             // for (let i = 1; i < renderer.flexColumns.length; i++) {
             //     if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
-            //         for (const run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+            //         for (var run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
             //             if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
             //                 musicResult.artist = run.text;
             //             }
             //             if (Object.keys(run).length == 1) {
-            //                 const yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+            //                 var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
             //                 if (yearMatch) musicResult.year = parseInt(yearMatch[0])
             //             }
             //         }
@@ -146,7 +325,7 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
 
                     if (res.status == 200) {
                         // extracting useful data
-                        const cts = res.data.contents;
+                        var cts = res.data.contents;
     
                         // extended queries (query autocompletions)
                         let extendedQueries = [];
@@ -159,8 +338,8 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
                         // music results (quick video and albums results)
                         let musicResults = [];
                         cts[1].searchSuggestionsSectionRenderer.contents.forEach(musicObj => {
-                            const renderer = musicObj.musicResponsiveListItemRenderer;
-                            const musicResult = this.extractRendererInfo(renderer);
+                            var renderer = musicObj.musicResponsiveListItemRenderer;
+                            var musicResult = this.extractRendererInfo(renderer);
                             if (musicResult) musicResults.push(musicResult);
                         })
     
@@ -191,14 +370,14 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
 
                     if (res.status == 200) {
                         // extracting useful data
-                        const cts = res.data.contents
-                        const cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
+                        var cts = res.data.contents
+                        var cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
                         // extracting videos
                         let musicResults = [];
                         cts2.forEach(shelf => {
                             if ("musicCardShelfRenderer" in shelf) {
-                                const renderer = shelf.musicCardShelfRenderer;
-                                const musicResult = this.extractTopRendererInfo(renderer);
+                                var renderer = shelf.musicCardShelfRenderer;
+                                var musicResult = this.extractTopRendererInfo(renderer);
                                 if (musicResult) {
                                     musicResult.top = true;
                                     musicResults.push(musicResult);
@@ -206,8 +385,8 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
                             }
                             if ("musicShelfRenderer" in shelf) {
                                 shelf.musicShelfRenderer.contents.forEach(musicObj => {
-                                    const renderer = musicObj.musicResponsiveListItemRenderer;
-                                    const musicResult = this.extractRendererInfo(renderer);
+                                    var renderer = musicObj.musicResponsiveListItemRenderer;
+                                    var musicResult = this.extractRendererInfo(renderer);
                                     if (musicResult) musicResults.push(musicResult);
                                 })
                             }
@@ -225,19 +404,18 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
     }
 
     downloadVideo(video, outputStream, onProgress) {
-        console.log("Downloading video:", video.id)
         return new Promise((resolve, reject) => {
-            this.extractStreamUrl(video.id).then(url => {
+            this.extractStreamUrlYtDlp(video.id).then(url => {
                 axios.get(url, {
                     responseType: "stream",
                     headers: { "Range": "bytes=0-" }
                 }).then(res => {
-                    const webmStream = res.data;
-                    // const webmStream = fs.createReadStream("test.webm")
-                    // const outputStream = fs.createWriteStream("test3.mp3")
+                    var webmStream = res.data;
+                    // var webmStream = fs.createReadStream("test.webm")
+                    // var outputStream = fs.createWriteStream("test3.mp3")
                     // let coverImage = "./test.png"
 
-                    const ffmpegArgs = [
+                    var ffmpegArgs = [
                         '-i', 'pipe:0', // Lire à partir du flux d'entrée standard
                         // '-i', coverImage,
                         // '-map', '0:0', // Mapper l'audio
@@ -255,23 +433,23 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
                         'pipe:1' // Écrire vers le flux de sortie standard
                     ];
 
-                    const ffmpegProcess = cp.spawn('ffmpeg', ffmpegArgs);
+                    var ffmpegProcess = cp.spawn('ffmpeg', ffmpegArgs);
                     webmStream.pipe(ffmpegProcess.stdin);
                     ffmpegProcess.stdout.pipe(outputStream);
 
                     let totalTime;
-                    const parseTime = timeString => parseInt(timeString.replace(/:/g, ''))
+                    var parseTime = timeString => parseInt(timeString.replace(/:/g, ''))
                     ffmpegProcess.stderr.on('data', (data) => {
                         data = data.toString();
                         // // Vous pouvez analyser la sortie d'erreur pour obtenir la progression
                         if (data.includes("Duration:")) {
-                            const durationMatch = data.match(/Duration: (\d+:\d+:\d+.\d+)/);
+                            var durationMatch = data.match(/Duration: ([0-9]+:[0-9]+:[0-9]+.[0-9]+)/);
                             if (durationMatch) totalTime = parseTime(durationMatch[1]);
                         }
                         if (data.includes('time=')) {
-                            const progressMatch = data.match(/time=(\d+:\d+:\d+.\d+)/);
+                            var progressMatch = data.match(/time=([0-9]+:[0-9]+:[0-9]+.[0-9]+)/);
                             if (progressMatch) {
-                                const time = parseTime(progressMatch[1])
+                                var time = parseTime(progressMatch[1])
                                 onProgress(time / totalTime)
                             }
                         }
@@ -283,35 +461,10 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
                     });
                 });
             }).catch(reject)
-            // Promise.all([
-            //     axios.post(
-            //         "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
-            //         {
-            //             videoId: id,
-            //             context: this.context
-            //         }
-            //     ),
-            //     axios.get(
-            //         "https://music.youtube.com/s/player/b2858d36/player_ias.vflset/fr_FR/base.js",
-            //     ),
-            // ]).then(res => {
-            //     try {
-            //         if (res[0].status == 200 && res[1].status == 200) {
-            //             // extracting useful data
-            //             const player = res[0].data;
-            //             const base = res[1].data;
-            //             resolve(base)
-            //         } else {
-            //             reject(new Error("Script error: HTTPS POST status code is " + res.status))
-            //         }
-            //     } catch(err) {
-            //         reject(err)
-            //     }
-            // }).catch(reject)
         })
     }
 
-    extractStreamUrl(id) {
+    extractStreamUrlYtDlp(id) {
         return new Promise((resolve, reject) => {
             // return resolve("https://rr1---sn-n4g-ouxz.googlevideo.com/videoplayback?expire=1747707904&ei=oJMraNKzGNbf6dsPx9uM0Qo&ip=2a02%3A842a%3A3c4f%3A7d01%3Ac8e6%3Af162%3A69b6%3A41a&id=o-AIZRHZ1sfbl6EykiztzYr1u42b9He_Vx3O4utUa4ROs-&itag=251&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&met=1747686304%2C&mh=Tb&mm=31%2C29&mn=sn-n4g-ouxz%2Csn-n4g-jqbe6&ms=au%2Crdu&mv=m&mvi=1&pl=47&rms=au%2Cau&gcr=fr&initcwndbps=2918750&bui=AecWEAatMmfIpanpkhsJMWO_pzRFBBP9e3KsZqyP4jzieaP_EYahR-TLP4vkgyGLl_iabHKNM0VcmoEp&spc=wk1kZofjhcny&vprv=1&svpuc=1&mime=audio%2Fwebm&rqh=1&gir=yes&clen=4408344&dur=261.081&lmt=1714576784227977&mt=1747685815&fvip=6&keepalive=yes&c=IOS&txp=4502434&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cgcr%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AJfQdSswRQIhAKSnuQqKbjle528DAbnuK6aXyknoJ9gkocvmnCe-QWnzAiAlPrp_ygOgms2WNEIMTAnwP2C9ElwpNj6ZgciEZXSzzw%3D%3D&lsparams=met%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=ACuhMU0wRgIhAOkH-ACuxDVHIx4VtvrJubj5-SvaK9-ylW3Kqr0PpyaEAiEAzZaGVMGRg32uqXLRzOmunQzBVwn0lvek4DCFPGUE34c%3D")
             cp.exec("yt-dlp https://youtube.com/watch?v=" + id + " -x -g", (err, stdout, stderr) => {
@@ -324,6 +477,102 @@ let [type, id] = this.extractRendererTypeAndId(renderer);
         })
     }
 
+    getPlayer(id) {
+        return new Promise((resolve, reject) => {
+            axios.get(
+                "https://music.youtube.com/watch?v=" + id,
+                {
+                    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0" }
+                }
+            )
+            // fs.promises.readFile("watch.html")
+            .then(res => {
+                if (res.status != 200)
+                    return reject("Error downloading player: status code for watch.html is " + res.status);
+                
+                var html = res.data;
+                fs.writeFileSync("watch.html", html)
+                // var html = res.toString();
+                var match = html.match(/\/s\/player\/([a-z0-9]{8})\/player_ias\.vflset\/([a-z]{2}_[A-Z]{2})\/base\.js/);
+                if (!match) return reject("Error downloading player: player URL not found in html");
+
+                var player = new YTPlayer(match[1], match[2]);
+                player.downloadAndParse().then(() => {
+                    resolve(player)
+                }).catch(reject)
+            })
+        })
+    }
+
+    downloadVideoData(id, player) {
+        // downloads video data as JSON object, including formats' encrypted ciphers
+
+        return new Promise((resolve, reject) => {
+            axios.post(
+                "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+                {
+                    'context': {'client': {'hl': 'en', 'gl': 'FR', 'remoteHost': '2a02:842a:3c4f:7d01:431:5c98:fe70:feae', 'deviceMake': '', 'deviceModel': '', 'visitorData': 'Cgt1QXVveVA1UHgyTSip-sbBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiA3', 'userAgent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)', 'clientName': 'TVHTML5', 'clientVersion': '7.20250521.15.00', 'osVersion': '', 'originalUrl': 'https://www.youtube.com/tv', 'theme': 'CLASSIC', 'platform': 'DESKTOP', 'clientFormFactor': 'UNKNOWN_FORM_FACTOR', 'webpSupport': false, 'configInfo': {'appInstallData': 'CKn6xsEGEOugzxwQiIewBRDroc8cEJr0zhwQuOTOHBCmnc8cEP6ezxwQzN-uBRDa984cEOujzxwQgc3OHBCJsM4cEOKezxwQ3rzOHBDJ5rAFEParsAUQu9nOHBCU_rAFEIKgzxwQmbL_EhDmoM8cEODg_xIQiOOvBRC9irAFEIiEuCIQndCwBRDtoM8cEL22rgUQ_LLOHBC52c4cEJmYsQUQ8OLOHBDBg7giEP7z_xIQyfevBRCcm88cENPhrwUQt-r-EhDLms4cEJmNsQUQz4LPHBDMic8cEKTqzhwQ15zPHBC9mbAFEOvo_hIQkobPHBD9nM8cEP6KzxwQh6zOHBDGjs8cEIqCgBMQ-YO4IhCwic8cENmizxwQuNLOHBD_1c4cEPGezxwQnJnPHCokQ0FNU0ZSVVctWnEtREpTQ0V0WFM2Z3Y1N0FQSjNBVWRCdz09'}, 'tvAppInfo': {'appQuality': 'TV_APP_QUALITY_FULL_ANIMATION'}, 'timeZone': 'UTC', 'acceptHeader': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'deviceExperimentId': 'ChxOelV3TnprNU1EQXpPRFkwTlRnMk5UUTROQT09EKn6xsEGGKn6xsEG', 'rolloutToken': 'CPid45z46pSrNhD4-cSkj7yNAxixh_ikj7yNAw%3D%3D', 'utcOffsetMinutes': 0}, 'user': {'lockedSafetyMode': false}, 'request': {'useSsl': true}, 'clickTracking': {'clickTrackingParams': 'IhMIyfP3pI+8jQMVt+5JBx1cWxsb'}},
+                    'videoId': id,
+                    'playbackContext': {'contentPlaybackContext': {'html5Preference': 'HTML5_PREF_WANTS', 'signatureTimestamp': player.sts}}, 'contentCheckOk': true, 
+                    'racyCheckOk': true
+                },
+                {
+                    headers: {'X-YouTube-Client-Name': '7', 'X-YouTube-Client-Version': '7.20250521.15.00', 'Origin': 'https://www.youtube.com', 'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)', 'content-type': 'application/json', 'X-Goog-Visitor-Id': 'Cgt1QXVveVA1UHgyTSio-sbBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiA3'}
+                }
+            )
+            // fs.promises.readFile("ytinitialplayerresponse.json")
+            .then(res => {
+                if (res.status != 200)
+                    return reject("Error downloading video data: status code for player.json is " + res.status);
+                
+                var data = res.data;
+                // fs.writeFileSync("videodata2.json", JSON.stringify(data))
+                // var data = JSON.parse(res.toString());
+                var info = {
+                    id: data.videoDetails.videoId,
+                    title: data.videoDetails.title,
+                    artist: data.videoDetails.author,
+                    views: data.videoDetails.viewCount,
+                    duration: parseInt(data.videoDetails.lengthSeconds),
+                    thumbnails: data.videoDetails.thumbnail.thumbnails,
+                    formats: data.streamingData.formats.concat(data.streamingData.adaptiveFormats)
+                        // .filter(fmt => fmt.mimeType.includes("audio/webm"))
+                };
+                resolve(info)
+            }).catch(reject)
+        })
+    }
+
+    extractVideo(info) {
+        return new Promise((resolve, reject) => {
+            if (!("id" in info)) return reject("No id provided");
+
+            this.getPlayer(info.id)
+            .then(player => {
+                this.downloadVideoData(info.id, player)
+                .then(extractedInfo => {
+                    for (var format of extractedInfo.formats) {
+                        format.url = player.decryptFormatStreamUrl(format)
+                        delete format.signatureCipher
+                    }
+                    for (var [ key, value ] of Object.entries(info)) {
+                        extractedInfo[key] = value
+                    }
+                    resolve(extractedInfo)
+                }).catch(reject);
+            }).catch(reject);
+
+        })
+    }
+
 }
+
+// var c = new YTMClient();
+// c.extractVideo({ id: "WqajS-Vlv4k" }).then(info => {
+//     resolve(info)
+//     fs.writeFileSync("info.json", JSON.stringify(info))
+// }).catch(err => {
+//     console.log("Error:", err)
+// })
 
 module.exports = YTMClient;
