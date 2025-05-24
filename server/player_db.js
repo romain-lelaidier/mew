@@ -25,7 +25,7 @@ class PlayerDB {
         // console.log("Saving player", player.pid, player.plg)
         return this.connection.query(
             `REPLACE INTO players (pid, plg, sts, sfc, nfc) VALUES (?, ?, ?, ?, ?)`,
-            [ player.pid, player.plg, player.sts, player.sigFuncCode, player.nFuncCode ]
+            [ player.pid, player.plg, player.sts, player.sfc, player.nfc ]
         )
     }
 
