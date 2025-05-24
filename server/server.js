@@ -6,8 +6,8 @@ app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 
-const MYSQL_CONFIG = JSON.parse(fs.existsSync("mysql_config.json")
-    ? fs.readFileSync("mysql_config.json")
+const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
+    ? fs.readFileSync("./mysql_config.json")
     : process.env.MYSQL_CONFIG);
 
 // HTTPS credentials
@@ -78,6 +78,18 @@ app.post('/api/extract_video/', (req, res) => {
     // res.setHeader('Content-Type', 'audio/mpeg');
     // res.setHeader('Content-Disposition', 'attachment');
     // c.downloadVideo({ id }, res, (progress) => {})
+})
+
+app.get('/api/extract_video/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    c.extractVideo({ id }).then(info => {
+        jres(res, info)
+    }).catch(err => {
+        bres(res, 500, 'text/plain', err.toString())
+    })
 })
 
 const httpServer = http.createServer(app);
