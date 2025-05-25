@@ -132,7 +132,7 @@ class YTPlayer {
             this.dbLoad(pdb).then(res => {
                 resolve()
             }).catch(err => {
-                console.log("Loading failed")
+                console.log("Player not saved, downloading from Web")
                 this.downloadFromWeb().then(() => {
                     try {
                         // extracting signature timestamp from player (to indicate API which player version we're using)
@@ -261,49 +261,18 @@ class YTMClient {
         }
         this.pdb = new PlayerDB(dbConfig)
 
-    // // Function to create a table
-    // function createTable(connection) {
-    //     try {
-    //         await connection.query(`
-    //         CREATE TABLE IF NOT EXISTS users (
-    //             id INT AUTO_INCREMENT PRIMARY KEY,
-    //             name VARCHAR(255) NOT NULL,
-    //             email VARCHAR(255) NOT NULL UNIQUE
-    //         )
-    //         `);
-    //         console.log('Table created successfully');
-    //     } catch (error) {
-    //         console.error('Error creating table:', error);
-    //     } finally {
-    //         await connection.end();
-    //     }
-    // }
-    
-    // // Function to insert data into the table
-    // function insertData() {
-    //     const connection = await mysql.createConnection(dbConfig);
-    //     try {
-    //         await connection.query(`INSERT INTO users (name, email) VALUES ('John Doe', 'john.doe@example.com')`);
-    //         console.log('Data inserted successfully');
-    //     } catch (error) {
-    //         console.error('Error inserting data:', error);
-    //     } finally {
-    //         await connection.end();
-    //     }
-    // }
-    
-    // // Function to query data from the table
-    // function queryData() {
-    //     const connection = await mysql.createConnection(dbConfig);
-    //     try {
-    //         const [rows] = await connection.query('SELECT * FROM users');
-    //         console.log('Data retrieved successfully:', rows);
-    //     } catch (error) {
-    //         console.error('Error querying data:', error);
-    //     } finally {
-    //         await connection.end();
-    //     }
-    // }
+        this.headers = {
+            "Host": "music.youtube.com",
+            "Origin": "https://music.youtube.com",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
+            "X-Goog-EOM-Visitor-Id": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
+            "X-Youtube-Bootstrap-Logged-In": "false",
+            "X-Youtube-Client-Name": "67",
+            "X-Youtube-Client-Version": "1.20250519.03.01",
+        }
     }
 
     async init() {
@@ -329,6 +298,42 @@ class YTMClient {
         return [null, null]
     }
 
+    parseRuns(runs, musicResult) {
+        runs.forEach(run => {
+            if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
+                musicResult.artist = run.text;
+            }
+            if (Object.keys(run).length == 1) {
+                var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+                if (yearMatch) musicResult.year = parseInt(yearMatch[0]);
+
+                var durationMatch = run.text.match(/(\d{1,2}):(\d{1,2})/);
+                if (durationMatch) musicResult.duration = parseInt(durationMatch[1]) * 60 + parseInt(durationMatch[2]);
+
+                if (run.text.includes("vues") || run.text.includes("lectures")) {
+                    var viewsMatch = run.text.match(/(\d+|\d+,\d+)( (k|M))?/);
+                    const multiplier = {
+                        undefined: 1,
+                        k: 1000,
+                        M: 1000000
+                    }
+                    musicResult.views = parseFloat(viewsMatch[1]) * multiplier[viewsMatch[3]]
+                }
+            }
+        })
+    }
+
+    parsePid(renderer, musicResult) {
+        for (const item of renderer.menu.menuRenderer.items) {
+            try {
+                musicResult.pid = item.menuNavigationItemRenderer.navigationEndpoint.watchEndpoint.playlistId;
+                return;
+            } catch(err) {
+                continue
+            }
+        }
+    }
+
     extractRendererInfo(renderer) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
         if (type) {
@@ -341,17 +346,11 @@ class YTMClient {
             
             for (let i = 1; i < renderer.flexColumns.length; i++) {
                 if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
-                    for (var run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-                        if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
-                            musicResult.artist = run.text;
-                        }
-                        if (Object.keys(run).length == 1) {
-                            var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
-                            if (yearMatch) musicResult.year = parseInt(yearMatch[0])
-                        }
-                    }
+                    this.parseRuns(renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs, musicResult)
                 }
             }
+
+            this.parsePid(renderer, musicResult)
 
             return musicResult;
         }
@@ -362,22 +361,29 @@ class YTMClient {
         if (type) {
             var musicResult = { 
                 type, id,
-                thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails
+                thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
+                title: renderer.title.runs[0].text
+            };
+
+            this.parseRuns(renderer.subtitle.runs, musicResult);
+            this.parsePid(renderer, musicResult)
+
+            return musicResult;
+        }
+    }
+
+    extractNextRendererInfo(renderer) {
+        let [type, id] = this.extractRendererTypeAndId(renderer);
+        if (type) {
+            var musicResult = { 
+                type, id,
+                thumbnails: renderer.thumbnail.thumbnails,
+                title: renderer.title.runs[0].text
             };
             
-            // for (let i = 1; i < renderer.flexColumns.length; i++) {
-            //     if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
-            //         for (var run of renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-            //             if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
-            //                 musicResult.artist = run.text;
-            //             }
-            //             if (Object.keys(run).length == 1) {
-            //                 var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
-            //                 if (yearMatch) musicResult.year = parseInt(yearMatch[0])
-            //             }
-            //         }
-            //     }
-            // }
+            this.parseRuns(renderer.longBylineText.runs, musicResult)
+            this.parseRuns(renderer.lengthText.runs, musicResult)
+            this.parsePid(renderer, musicResult)
 
             return musicResult;
         }
@@ -442,35 +448,33 @@ class YTMClient {
                 }
             ).then(res => {
                 try {
+                    if (res.status != 200) return reject("Could not download search results: status code is " + res.status);
 
-                    if (res.status == 200) {
-                        // extracting useful data
-                        var cts = res.data.contents
-                        var cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
-                        // extracting videos
-                        let musicResults = [];
-                        cts2.forEach(shelf => {
-                            if ("musicCardShelfRenderer" in shelf) {
-                                var renderer = shelf.musicCardShelfRenderer;
-                                var musicResult = this.extractTopRendererInfo(renderer);
-                                if (musicResult) {
-                                    musicResult.top = true;
-                                    musicResults.push(musicResult);
-                                }
+                    // extracting useful data
+                    var cts = res.data.contents
+                    var cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
+                    fs.writeFileSync("testing/cts2.json", JSON.stringify(cts2))
+                    // extracting videos
+                    let musicResults = [];
+                    cts2.forEach(shelf => {
+                        if ("musicCardShelfRenderer" in shelf) {
+                            var renderer = shelf.musicCardShelfRenderer;
+                            var musicResult = this.extractTopRendererInfo(renderer);
+                            if (musicResult) {
+                                musicResult.top = true;
+                                musicResults.push(musicResult);
                             }
-                            if ("musicShelfRenderer" in shelf) {
-                                shelf.musicShelfRenderer.contents.forEach(musicObj => {
-                                    var renderer = musicObj.musicResponsiveListItemRenderer;
-                                    var musicResult = this.extractRendererInfo(renderer);
-                                    if (musicResult) musicResults.push(musicResult);
-                                })
-                            }
-                        })
-    
-                        resolve(musicResults)
-                    } else {
-                        reject(new Error("Script error: HTTPS POST status code is " + res.status))
-                    }
+                        }
+                        if ("musicShelfRenderer" in shelf) {
+                            shelf.musicShelfRenderer.contents.forEach(musicObj => {
+                                var renderer = musicObj.musicResponsiveListItemRenderer;
+                                var musicResult = this.extractRendererInfo(renderer);
+                                if (musicResult) musicResults.push(musicResult);
+                            })
+                        }
+                    })
+
+                    resolve(musicResults)
                 } catch(err) {
                     reject(err)
                 }
@@ -579,29 +583,193 @@ class YTMClient {
         })
     }
 
+    downloadNextData(videoId, playlistId) {
+        return new Promise((resolve, reject) => {
+            if (!playlistId) return resolve([])
+            axios.post(
+                "https://music.youtube.com/youtubei/v1/next?prettyPrint=false",
+                {
+                    "enablePersistentPlaylistPanel": true,
+                    "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
+                    "playlistId": playlistId,
+                    "params": "wAEB8gECeAHqBAtUTVlydkVNWnJfVQ%3D%3D",
+                    "isAudioOnly": true,
+                    "responsiveSignals": {
+                        "videoInteraction": [
+                        {
+                            "queueImpress": {},
+                            "videoId": videoId,
+                            "queueIndex": 0
+                        }
+                        ]
+                    },
+                    "queueContextParams": "CAEaEVJEQU1WTVRNWXJ2RU1acl9VIKHb2Ymbvo0DMgtUTVlydkVNWnJfVUoLVE1ZcnZFTVpyX1VQAFoECAAQAXgB",
+                    "context": {
+                        "client": {
+                        "hl": "fr",
+                        "gl": "FR",
+                        "remoteHost": "85.69.106.218",
+                        "deviceMake": "",
+                        "deviceModel": "",
+                        "visitorData": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
+                        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
+                        "clientName": "WEB_REMIX",
+                        "clientVersion": "1.20250519.03.01",
+                        "osName": "Windows",
+                        "osVersion": "10.0",
+                        "originalUrl": "https://music.youtube.com/watch?v=TMYrvEMZr_U&cbrd=1",
+                        "platform": "DESKTOP",
+                        "clientFormFactor": "UNKNOWN_FORM_FACTOR",
+                        "configInfo": {
+                            "appInstallData": "CPKry8EGEMyJzxwQmY2xBRDr6P4SEOujzxwQ_vP_EhDM364FEIiHsAUQuOTOHBCI468FEP-ezxwQiJLOHBCvhs8cEIiEuCIQ5qDPHBCd0LAFEImwzhwQmvTOHBDwnc8cEJmYsQUQ0-GvBRC52c4cEMnmsAUQvYqwBRDins8cENr3zhwQ4OD_EhDroc8cEOK4sAUQ15zPHBC9mbAFELfq_hIQvbauBRCcm88cEIHNzhwQyfevBRCwic8cEJT-sAUQ7aDPHBD8ss4cEParsAUQ_pzPHBC72c4cEJOGzxwQ66DPHBCmnc8cEN68zhwQh6zOHBCKgoATEKOmzxwQ8OLOHBD_1c4cKixDQU1TR3hVUW9MMndETkhrQnBTQ0V0WFM2Z3Y1N0FQSjNBV2dwQVFkQnc9PQ%3D%3D",
+                            "coldConfigData": "CPOry8EGGjJBT2pGb3gyY2dsSEhxaGh5NFNGV29ucUpVVWMzRUI5T2dFM0xoYnl6M2Fna0FlOXNYdyIyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc%3D",
+                            "coldHashData": "CPOry8EGEhM4MzcyMjg4Nzg1MDY2MDg0NzkyGPOry8EGMjJBT2pGb3gyY2dsSEhxaGh5NFNGV29ucUpVVWMzRUI5T2dFM0xoYnl6M2Fna0FlOXNYdzoyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc%3D",
+                            "hotHashData": "CPOry8EGEhQxMTIxNDYxODY0NTg2ODY2NjIyMhjzq8vBBjIyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc6MkFPakZveDJjZ2xISHFoaHk0U0ZXb25xSlVVYzNFQjlPZ0UzTGhieXozYWdrQWU5c1h3"
+                        },
+                        "browserName": "Firefox",
+                        "browserVersion": "138.0",
+                        "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "deviceExperimentId": "ChxOelV3T0RJNU9EYzJOakV5TXpNek1qYzBNdz09EPKry8EGGPKry8EG",
+                        "rolloutToken": "CN77_c3k1sKK2gEQmd_giJu-jQMYmd_giJu-jQM%3D",
+                        "screenWidthPoints": 1485,
+                        "screenHeightPoints": 731,
+                        "screenPixelDensity": 1,
+                        "screenDensityFloat": 1.25,
+                        "utcOffsetMinutes": 120,
+                        "userInterfaceTheme": "USER_INTERFACE_THEME_DARK",
+                        "timeZone": "Europe/Paris",
+                        "musicAppInfo": {
+                            "pwaInstallabilityStatus": "PWA_INSTALLABILITY_STATUS_UNKNOWN",
+                            "webDisplayMode": "WEB_DISPLAY_MODE_BROWSER",
+                            "storeDigitalGoodsApiSupportStatus": {
+                            "playStoreDigitalGoodsApiSupportStatus": "DIGITAL_GOODS_API_SUPPORT_STATUS_UNSUPPORTED"
+                            }
+                        }
+                        },
+                        "user": {
+                        "lockedSafetyMode": false
+                        },
+                        "request": {
+                        "useSsl": true,
+                        "internalExperimentFlags": [],
+                        "consistencyTokenJars": []
+                        },
+                        "clickTracking": {
+                        "clickTrackingParams": "CBoQ_20iEwjn_NiJm76NAxW-RE8EHRCUCiU="
+                        },
+                        "activePlayers": [
+                        {
+                            "playerContextParams": "Q0FFU0FnZ0I="
+                        }
+                        ]
+                    }
+                },
+                { headers: this.headers }
+            )
+            .then(res => {
+                if (res.status != 200) return reject("Could not download next data: status code is " + res.status);
+
+                try {
+                    var results = [];
+                    for (const entry of res.data.contents.singleColumnMusicWatchNextResultsRenderer.tabbedRenderer.watchNextTabbedResultsRenderer.tabs[0].tabRenderer.content.musicQueueRenderer.content.playlistPanelRenderer.contents) {
+                        try {
+                            var renderer = entry.playlistPanelVideoRenderer;
+                            results.push(this.extractNextRendererInfo(renderer));
+                        } catch(err) {
+                            console.log(err)
+                            continue;
+                        }
+                    }
+                    resolve(results);
+                } catch(err) {
+                    console.log(err)
+                    resolve([])
+                }
+            }).catch(reject)
+        })
+    }
+
     downloadVideoData(id, player) {
         // downloads video data as JSON object, including formats' encrypted ciphers
 
         return new Promise((resolve, reject) => {
             axios.post(
-                "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+                "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
                 {
-                    'context': {'client': {'hl': 'en', 'gl': 'FR', 'remoteHost': '2a02:842a:3c4f:7d01:431:5c98:fe70:feae', 'deviceMake': '', 'deviceModel': '', 'visitorData': 'Cgt1QXVveVA1UHgyTSip-sbBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiA3', 'userAgent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)', 'clientName': 'TVHTML5', 'clientVersion': '7.20250521.15.00', 'osVersion': '', 'originalUrl': 'https://www.youtube.com/tv', 'theme': 'CLASSIC', 'platform': 'DESKTOP', 'clientFormFactor': 'UNKNOWN_FORM_FACTOR', 'webpSupport': false, 'configInfo': {'appInstallData': 'CKn6xsEGEOugzxwQiIewBRDroc8cEJr0zhwQuOTOHBCmnc8cEP6ezxwQzN-uBRDa984cEOujzxwQgc3OHBCJsM4cEOKezxwQ3rzOHBDJ5rAFEParsAUQu9nOHBCU_rAFEIKgzxwQmbL_EhDmoM8cEODg_xIQiOOvBRC9irAFEIiEuCIQndCwBRDtoM8cEL22rgUQ_LLOHBC52c4cEJmYsQUQ8OLOHBDBg7giEP7z_xIQyfevBRCcm88cENPhrwUQt-r-EhDLms4cEJmNsQUQz4LPHBDMic8cEKTqzhwQ15zPHBC9mbAFEOvo_hIQkobPHBD9nM8cEP6KzxwQh6zOHBDGjs8cEIqCgBMQ-YO4IhCwic8cENmizxwQuNLOHBD_1c4cEPGezxwQnJnPHCokQ0FNU0ZSVVctWnEtREpTQ0V0WFM2Z3Y1N0FQSjNBVWRCdz09'}, 'tvAppInfo': {'appQuality': 'TV_APP_QUALITY_FULL_ANIMATION'}, 'timeZone': 'UTC', 'acceptHeader': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'deviceExperimentId': 'ChxOelV3TnprNU1EQXpPRFkwTlRnMk5UUTROQT09EKn6xsEGGKn6xsEG', 'rolloutToken': 'CPid45z46pSrNhD4-cSkj7yNAxixh_ikj7yNAw%3D%3D', 'utcOffsetMinutes': 0}, 'user': {'lockedSafetyMode': false}, 'request': {'useSsl': true}, 'clickTracking': {'clickTrackingParams': 'IhMIyfP3pI+8jQMVt+5JBx1cWxsb'}},
-                    'videoId': id,
-                    'playbackContext': {'contentPlaybackContext': {'html5Preference': 'HTML5_PREF_WANTS', 'signatureTimestamp': player.sts}}, 'contentCheckOk': true, 
-                    'racyCheckOk': true
+                    "videoId": id,
+                    "context": {
+                        "client": {
+                            "hl": "fr",
+                            "gl": "FR",
+                            "deviceMake": "",
+                            "deviceModel": "",
+                            "visitorData": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
+                            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
+                            "clientName": "WEB_REMIX",
+                            "clientVersion": "1.20250519.03.01",
+                            "osName": "Windows",
+                            "osVersion": "10.0",
+                            "originalUrl": "https://music.youtube.com/watch?cbrd=1&v=" + id,
+                            "platform": "DESKTOP",
+                            "clientFormFactor": "UNKNOWN_FORM_FACTOR",
+                            "configInfo": {
+                                "appInstallData": "CPKry8EGEMyJzxwQmY2xBRDr6P4SEOujzxwQ_vP_EhDM364FEIiHsAUQuOTOHBCI468FEP-ezxwQiJLOHBCvhs8cEIiEuCIQ5qDPHBCd0LAFEImwzhwQmvTOHBDwnc8cEJmYsQUQ0-GvBRC52c4cEMnmsAUQvYqwBRDins8cENr3zhwQ4OD_EhDroc8cEOK4sAUQ15zPHBC9mbAFELfq_hIQvbauBRCcm88cEIHNzhwQyfevBRCwic8cEJT-sAUQ7aDPHBD8ss4cEParsAUQ_pzPHBC72c4cEJOGzxwQ66DPHBCmnc8cEN68zhwQh6zOHBCKgoATEKOmzxwQ8OLOHBD_1c4cKixDQU1TR3hVUW9MMndETkhrQnBTQ0V0WFM2Z3Y1N0FQSjNBV2dwQVFkQnc9PQ%3D%3D"
+                            },
+                            "browserName": "Firefox",
+                            "browserVersion": "138.0",
+                            "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                            "deviceExperimentId": "ChxOelV3T0RJNU9EYzJOakV5TXpNek1qYzBNdz09EPKry8EGGPKry8EG",
+                            "rolloutToken": "CN77_c3k1sKK2gEQmd_giJu-jQMYmd_giJu-jQM%3D",
+                            "timeZone": "Europe/Paris",
+                            "playerType": "UNIPLAYER",
+                            "tvAppInfo": {
+                                "livingRoomAppMode": "LIVING_ROOM_APP_MODE_UNSPECIFIED"
+                            },
+                            "clientScreen": "WATCH_FULL_SCREEN"
+                        },
+                        "user": {
+                            "lockedSafetyMode": false
+                        },
+                        "request": {
+                            "useSsl": true,
+                            "internalExperimentFlags": [],
+                            "consistencyTokenJars": []
+                        },
+                        "clientScreenNonce": "r2RvDcCmDXX_PTD9",
+                        "clickTracking": {
+                            "clickTrackingParams": "IhMIocbhiJu-jQMVbutJBx2gkhVtMghleHRlcm5hbA=="
+                        }
+                    },
+                    "playbackContext": {
+                        "contentPlaybackContext": {
+                            "html5Preference": "HTML5_PREF_WANTS",
+                            "lactMilliseconds": "1045",
+                            "referer": "https://music.youtube.com/watch?v=" + id,
+                            "signatureTimestamp": player.sts,
+                            "autoCaptionsDefaultOn": false,
+                            "mdxContext": {},
+                            "vis": 10
+                        },
+                        "devicePlaybackCapabilities": {
+                            "supportsVp9Encoding": true,
+                            "supportXhr": true
+                        }
+                    },
+                    "cpn": "hhtDviKL7meEWlhb",
+                    "params": "igMDCNgE",
+                    "captionParams": {}
                 },
                 {
-                    headers: {'X-YouTube-Client-Name': '7', 'X-YouTube-Client-Version': '7.20250521.15.00', 'Origin': 'https://www.youtube.com', 'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)', 'content-type': 'application/json', 'X-Goog-Visitor-Id': 'Cgt1QXVveVA1UHgyTSio-sbBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiA3'}
+                    headers: this.headers
                 }
             )
             // fs.promises.readFile("ytinitialplayerresponse.json")
             .then(res => {
                 if (res.status != 200)
                     return reject("Error downloading video data: status code for player.json is " + res.status);
-                
+
                 var data = res.data;
-                // fs.writeFileSync("videodata2.json", JSON.stringify(data))
+                // fs.writeFileSync("testing/videodata.json", JSON.stringify(data))
                 // var data = JSON.parse(res.toString());
                 var info = {
                     id: data.videoDetails.videoId,
@@ -613,6 +781,7 @@ class YTMClient {
                     formats: data.streamingData.formats.concat(data.streamingData.adaptiveFormats)
                         // .filter(fmt => fmt.mimeType.includes("audio/webm"))
                 };
+
                 resolve(info)
             }).catch(reject)
         })
@@ -622,8 +791,12 @@ class YTMClient {
         return new Promise((resolve, reject) => {
             if (!("id" in info)) return reject("No id provided");
 
-            this.getPlayer(info.id)
-            .then(player => {
+            Promise.all([
+                this.getPlayer(info.id),
+                this.downloadNextData(info.id, info.pid)
+            ])
+            .then(res => {
+                var [ player, next ] = res;
                 this.downloadVideoData(info.id, player)
                 .then(extractedInfo => {
                     for (var format of extractedInfo.formats) {
@@ -633,7 +806,10 @@ class YTMClient {
                     for (var [ key, value ] of Object.entries(info)) {
                         extractedInfo[key] = value
                     }
-                    resolve(extractedInfo)
+                    resolve({
+                        video: extractedInfo,
+                        next
+                    })
                 }).catch(reject);
             }).catch(reject);
 
