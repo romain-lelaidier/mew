@@ -289,8 +289,15 @@ class YTMClient {
 
     parseRuns(runs, musicResult) {
         runs.forEach(run => {
-            if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ARTIST") {
-                musicResult.artist = run.text;
+            if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint) {
+                var ytType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType;
+                var type = {
+                    "MUSIC_PAGE_TYPE_ARTIST": "artist",
+                    "MUSIC_PAGE_TYPE_ALBUM": "album"
+                }[ytType];
+                if (type) {
+                    musicResult[type] = run.text;
+                }
             }
             if (Object.keys(run).length == 1) {
                 var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
