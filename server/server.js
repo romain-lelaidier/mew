@@ -7,6 +7,10 @@ const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
 const DEBUG = process.env.DEBUG || false;
 
+if (DEBUG) {
+    console.log("DEBUG MODE")
+}
+
 const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
     ? fs.readFileSync("./mysql_config.json")
     : process.env.MYSQL_CONFIG);
@@ -46,7 +50,7 @@ app.get('/', (req, res) => {
 
 app.get('/api/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
-    
+
     let file = "debug/search_suggestions.json"
     if (DEBUG && fs.existsSync(file)) {
         console.log("search suggestions saved")
