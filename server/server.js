@@ -5,6 +5,7 @@ const app = express();
 app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
 const YTMClient = require("./youtube_extractor")
+const DEBUG = process.env.DEBUG || false;
 
 const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
     ? fs.readFileSync("./mysql_config.json")
@@ -45,22 +46,44 @@ app.get('/', (req, res) => {
 
 app.get('/api/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
-    c.searchSuggestions(query).then(results => {
-        jres(res, results)
-    }).catch(err => {
-        console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
-    })
+    
+    let file = "debug/search_suggestions.json"
+    if (DEBUG && fs.existsSync(file)) {
+        console.log("search suggestions saved")
+        fs.createReadStream(file).pipe(res, end=true)
+    } else {
+        c.searchSuggestions(query).then(results => {
+            fs.writeFileSync(file, JSON.stringify(results));
+            jres(res, results)
+        }).catch(err => {
+            console.log(err)
+            bres(res, 500, 'text/plain', err.toString())
+        })
+    }
 })
 
 app.get('/api/search/:query', (req, res) => {
     const query = req.params.query;
-    c.search(query).then(results => {
-        jres(res, results)
-    }).catch(err => {
-        console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
-    })
+
+    let file = "debug/search.json"
+    if (DEBUG && fs.existsSync(file)) {
+        console.log("search saved")
+        fs.createReadStream(file).pipe(res, end=true)
+    } else {
+        c.search(query).then(results => {
+            fs.writeFileSync(file, JSON.stringify(results));
+            jres(res, results)
+        }).catch(err => {
+            console.log(err)
+            bres(res, 500, 'text/plain', err.toString())
+        })
+    }
+})
+
+app.get('/api/convert/:url', (req, res) => {
+    res.status(200);
+    res.setHeader('Content-Type', 'audio/webm');
+    fs.createReadStream("testing/test.webm").pipe(res, end=true)
 })
 
 app.post('/api/extract_video/', (req, res) => {
@@ -69,15 +92,26 @@ app.post('/api/extract_video/', (req, res) => {
         && ares(res, req.body.info.id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
     if (!valid) return;
 
-    c.extractVideo(req.body.info).then(info => {
-        jres(res, info)
-    }).catch(err => {
-        bres(res, 500, 'text/plain', err.toString())
-    })
-    // const info = req.params.id;
-    // res.setHeader('Content-Type', 'audio/mpeg');
-    // res.setHeader('Content-Disposition', 'attachment');
-    // c.downloadVideo({ id }, res, (progress) => {})
+    let file = "debug/extract.json"
+    if (DEBUG && fs.existsSync(file)) {
+        console.log("extract saved")
+        fs.createReadStream(file).pipe(res, end=true)
+    } else {
+        c.extractVideo(req.body.info).then(info => {
+            if ("mobapp" in req.body && req.body.mobapp == true) {
+                info.video.streamUrl = info.video.formats
+                    .filter(fmt => fmt.mimeType.includes("audio/webm"))
+                    .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
+                    [0].url;
+                console.log(info)
+                delete info.video.formats;
+            }
+            fs.writeFileSync(file, JSON.stringify(info));
+            jres(res, info)
+        }).catch(err => {
+            bres(res, 500, 'text/plain', err.toString())
+        })
+    }
 })
 
 app.get('/api/extract_video/:id', (req, res) => {
@@ -88,6 +122,7 @@ app.get('/api/extract_video/:id', (req, res) => {
     c.extractVideo({ id }).then(info => {
         jres(res, info)
     }).catch(err => {
+        console.log(err)
         bres(res, 500, 'text/plain', err.toString())
     })
 })

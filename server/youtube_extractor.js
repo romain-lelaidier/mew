@@ -772,7 +772,7 @@ class YTMClient {
                         delete format.signatureCipher
                     }
                     for (var [ key, value ] of Object.entries(info)) {
-                        extractedInfo[key] = value
+                        if (!info.key) extractedInfo[key] = value
                     }
                     resolve({
                         video: extractedInfo,
