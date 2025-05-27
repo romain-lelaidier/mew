@@ -168,7 +168,7 @@ class YTPlayer {
                             }
                         }
                         if (!sigFuncName) return reject("Could not extract signature cipher function name");
-    
+
                         // var match = player.match(/(?xs)[;\n](?:(?P<f>function\s+)|(?:var\s+)?)(?P<funcname>[a-zA-Z0-9_$]+)\s*(?(f)|=\s*function\s*)\((?P<argname>[a-zA-Z0-9_$]+)\)\s*\{(?:(?!\}[;\n]).)+\}\s*catch\(\s*[a-zA-Z0-9_$]+\s*\)\s*\{\s*return\s+%s\[%d\]\s*\+\s*(?P=argname)\s*\}\s*return\s+[^}]+\}[;\n]/)
                         var matchNFuncName = this.js.match(/\nvar ([a-zA-Z][a-zA-Z0-9]+)=\[([a-zA-Z][a-zA-Z0-9]+)\];/)
                         if (!matchNFuncName) return reject("Could not extract n cipher function name");
@@ -261,18 +261,7 @@ class YTMClient {
         }
         this.pdb = new PlayerDB(dbConfig)
 
-        this.headers = {
-            "Host": "music.youtube.com",
-            "Origin": "https://music.youtube.com",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
-            "X-Goog-EOM-Visitor-Id": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
-            "X-Youtube-Bootstrap-Logged-In": "false",
-            "X-Youtube-Client-Name": "67",
-            "X-Youtube-Client-Version": "1.20250519.03.01",
-        }
+        this.headers = {'X-YouTube-Client-Name': '7', 'X-YouTube-Client-Version': '7.20250521.15.00', 'Origin': 'https://www.youtube.com', 'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)', 'content-type': 'application/json', 'X-Goog-Visitor-Id': 'CgstXzB5X3dIaS1fMCjsjtjBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiAu'}
     }
 
     async init() {
@@ -453,7 +442,7 @@ class YTMClient {
                     // extracting useful data
                     var cts = res.data.contents
                     var cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
-                    fs.writeFileSync("testing/cts2.json", JSON.stringify(cts2))
+                    // fs.writeFileSync("testing/cts2.json", JSON.stringify(cts2))
                     // extracting videos
                     let musicResults = [];
                     cts2.forEach(shelf => {
@@ -556,6 +545,29 @@ class YTMClient {
         })
     }
 
+    getYtcfg() {
+        return new Promise((resolve, reject) => {
+            axios.get(
+                "https://www.youtube.com/tv",
+                {
+                    headers: {'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version'}
+                }
+            ).then(res => {
+                var html = res.data;
+                // fs.writeFileSync("testing/tv.html", html);
+                var cvMatch = html.match(/"INNERTUBE_CLIENT_VERSION":"([0-9\.]+)[^0-9\.]/);
+                if (!cvMatch) return reject("Error downloading ytcfg: client version not found in html");
+
+                var ytcfg = {
+                    clientVersion: cvMatch[1]
+                };
+
+                this.headers['X-YouTube-Client-Version'] = ytcfg.clientVersion;
+                resolve(ytcfg)
+            })
+        })
+    }
+
     getPlayer(id) {
         return new Promise((resolve, reject) => {
             axios.get(
@@ -568,9 +580,9 @@ class YTMClient {
             .then(res => {
                 if (res.status != 200)
                     return reject("Error downloading player: status code for watch.html is " + res.status);
-                
+
                 var html = res.data;
-                fs.writeFileSync("watch.html", html)
+                // fs.writeFileSync("testing/watch.html", html)
                 // var html = res.toString();
                 var match = html.match(/\/s\/player\/([a-z0-9]{8})\/player_ias\.vflset\/([a-z]{2}_[A-Z]{2})\/base\.js/);
                 if (!match) return reject("Error downloading player: player URL not found in html");
@@ -689,75 +701,23 @@ class YTMClient {
         })
     }
 
-    downloadVideoData(id, player) {
+    downloadVideoData(id, player, ytcfg) {
         // downloads video data as JSON object, including formats' encrypted ciphers
 
         return new Promise((resolve, reject) => {
             axios.post(
                 "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
                 {
-                    "videoId": id,
                     "context": {
-                        "client": {
-                            "hl": "fr",
-                            "gl": "FR",
-                            "deviceMake": "",
-                            "deviceModel": "",
-                            "visitorData": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
-                            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
-                            "clientName": "WEB_REMIX",
-                            "clientVersion": "1.20250519.03.01",
-                            "osName": "Windows",
-                            "osVersion": "10.0",
-                            "originalUrl": "https://music.youtube.com/watch?cbrd=1&v=" + id,
-                            "platform": "DESKTOP",
-                            "clientFormFactor": "UNKNOWN_FORM_FACTOR",
-                            "configInfo": {
-                                "appInstallData": "CPKry8EGEMyJzxwQmY2xBRDr6P4SEOujzxwQ_vP_EhDM364FEIiHsAUQuOTOHBCI468FEP-ezxwQiJLOHBCvhs8cEIiEuCIQ5qDPHBCd0LAFEImwzhwQmvTOHBDwnc8cEJmYsQUQ0-GvBRC52c4cEMnmsAUQvYqwBRDins8cENr3zhwQ4OD_EhDroc8cEOK4sAUQ15zPHBC9mbAFELfq_hIQvbauBRCcm88cEIHNzhwQyfevBRCwic8cEJT-sAUQ7aDPHBD8ss4cEParsAUQ_pzPHBC72c4cEJOGzxwQ66DPHBCmnc8cEN68zhwQh6zOHBCKgoATEKOmzxwQ8OLOHBD_1c4cKixDQU1TR3hVUW9MMndETkhrQnBTQ0V0WFM2Z3Y1N0FQSjNBV2dwQVFkQnc9PQ%3D%3D"
-                            },
-                            "browserName": "Firefox",
-                            "browserVersion": "138.0",
-                            "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                            "deviceExperimentId": "ChxOelV3T0RJNU9EYzJOakV5TXpNek1qYzBNdz09EPKry8EGGPKry8EG",
-                            "rolloutToken": "CN77_c3k1sKK2gEQmd_giJu-jQMYmd_giJu-jQM%3D",
-                            "timeZone": "Europe/Paris",
-                            "playerType": "UNIPLAYER",
-                            "tvAppInfo": {
-                                "livingRoomAppMode": "LIVING_ROOM_APP_MODE_UNSPECIFIED"
-                            },
-                            "clientScreen": "WATCH_FULL_SCREEN"
-                        },
-                        "user": {
-                            "lockedSafetyMode": false
-                        },
-                        "request": {
-                            "useSsl": true,
-                            "internalExperimentFlags": [],
-                            "consistencyTokenJars": []
-                        },
-                        "clientScreenNonce": "r2RvDcCmDXX_PTD9",
-                        "clickTracking": {
-                            "clickTrackingParams": "IhMIocbhiJu-jQMVbutJBx2gkhVtMghleHRlcm5hbA=="
-                        }
-                    },
-                    "playbackContext": {
-                        "contentPlaybackContext": {
-                            "html5Preference": "HTML5_PREF_WANTS",
-                            "lactMilliseconds": "1045",
-                            "referer": "https://music.youtube.com/watch?v=" + id,
-                            "signatureTimestamp": player.sts,
-                            "autoCaptionsDefaultOn": false,
-                            "mdxContext": {},
-                            "vis": 10
-                        },
-                        "devicePlaybackCapabilities": {
-                            "supportsVp9Encoding": true,
-                            "supportXhr": true
-                        }
-                    },
-                    "cpn": "hhtDviKL7meEWlhb",
-                    "params": "igMDCNgE",
-                    "captionParams": {}
+                        "client": {"hl": "en", "gl": "FR", "deviceMake": "", "deviceModel": "", "visitorData": "CgtwYWphUEtFSXV0dyjXktjBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBq", "userAgent": "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)", "clientName": "TVHTML5", "clientVersion": ytcfg.clientVersion, "osVersion": "", "originalUrl": "https://www.youtube.com/tv", "theme": "CLASSIC", "platform": "DESKTOP", "clientFormFactor": "UNKNOWN_FORM_FACTOR", "webpSupport": false, "configInfo": {"appInstallData": "CNeS2MEGEJmYsQUQwoO4IhDloM8cEPX-_xIQmY2xBRCUms8cEO2gzxwQuOTOHBDevM4cEJT-sAUQvZmwBRCe0LAFEL6KsAUQ6-j-EhC52c4cEMn3rwUQ9quwBRCmnc8cENqHgBMQ4p7PHBDroM8cEPmDuCIQ4YKAExDPgs8cEPDizhwQvbauBRCcm88cEImwzhwQiOOvBRDM364FEP-ezxwQ_vP_EhDro88cENr3zhwQmvTOHBCThs8cELCJzxwQpIiAExCIh7AFEIuCgBMQ8JywBRCIhLgiELfq_hIQyKXPHBDJ5rAFEPyyzhwQy5rOHBCjps8cEP6czxwQpOrOHBC9nM8cENuizxwQ_orPHBDroc8cEODg_xIQu9nOHBDT4a8FENeczxwQzInPHBCBzc4cEIeszhwQ2aLPHCokQ0FNU0ZSVVctWnEtREpTQ0V0WFM2Z3Y1N0FQSjNBVWRCdz09"}, "tvAppInfo": {"appQuality": "TV_APP_QUALITY_FULL_ANIMATION"}, "timeZone": "UTC", "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "deviceExperimentId": "ChxOelV3T1RFNU9UWTVPRFEwTVRrMU9UZzNOdz09ENeS2MEGGNeS2MEG", "rolloutToken": "CNfgo63soO-csAEQ3tjNv6jEjQMYmuyTwKjEjQM%3D", "utcOffsetMinutes": 0},
+                        "user": {"lockedSafetyMode": false},
+                        "request": {"useSsl": true},
+                        "clickTracking": {"clickTrackingParams": "IhMIg9aTwKjEjQMVLuhJBx3LIxe8"}
+                    }, 
+                    "videoId": id, 
+                    "playbackContext": {"contentPlaybackContext": {"html5Preference": "HTML5_PREF_WANTS", "signatureTimestamp": player.sts}}, 
+                    "contentCheckOk": true, 
+                    "racyCheckOk": true
                 },
                 {
                     headers: this.headers
@@ -793,11 +753,12 @@ class YTMClient {
 
             Promise.all([
                 this.getPlayer(info.id),
-                this.downloadNextData(info.id, info.pid)
+                this.getYtcfg(),
+                this.downloadNextData(info.id, info.pid),
             ])
             .then(res => {
-                var [ player, next ] = res;
-                this.downloadVideoData(info.id, player)
+                var [ player, ytcfg, next ] = res;
+                this.downloadVideoData(info.id, player, ytcfg)
                 .then(extractedInfo => {
                     for (var format of extractedInfo.formats) {
                         format.url = player.decryptFormatStreamUrl(format)

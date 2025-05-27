@@ -50,16 +50,3 @@ class PlayerDB {
 }
 
 module.exports = PlayerDB;
-
-    // // Function to query data from the table
-    // function queryData() {
-    //     const connection = await mysql.createConnection(dbConfig);
-    //     try {
-    //         const [rows] = await connection.query('SELECT * FROM users');
-    //         console.log('Data retrieved successfully:', rows);
-    //     } catch (error) {
-    //         console.error('Error querying data:', error);
-    //     } finally {
-    //         await connection.end();
-    //     }
-    // }
