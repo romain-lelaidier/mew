@@ -4,7 +4,7 @@ const fs = require('fs');
 const app = express();
 app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
-const YTMClient = require("./youtube_extractor")
+const { YTMClient, parseQueryString } = require("./youtube_extractor")
 const DEBUG = process.env.DEBUG || false;
 
 if (DEBUG) {
@@ -128,6 +128,68 @@ app.get('/api/extract_video/:id', (req, res) => {
     }).catch(err => {
         console.log(err)
         bres(res, 500, 'text/plain', err.toString())
+    })
+})
+
+app.get('/api/mp3/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    console.log("Downloading", obj)
+
+    c.extractVideoAudioAsMp3(obj).then(stream => {
+        res.status(200);
+        res.setHeader('Content-type', 'audio/mpeg');
+        res.setHeader('Content-disposition', 'attachment');
+        stream.pipe(res, end=true);
+    }).catch(err => {
+        console.log(err)
+        bres(res, 500, 'text/plain', err.toString())
+    })
+})
+
+// web server
+
+var loaded = {};
+for (const webFile of [ 'index', 'search' ]) {
+    loaded[webFile] = fs.readFileSync(`./web/${webFile}.html`).toString();
+}
+
+function searchResultsToHTML(query, info) {
+    var res = `Search results for <span style="text-decoration:underline">${query}</span> :<br><br>`;
+    for (var r of info.SONG) {
+        var params = [];
+        for (var type of [ 'title', 'artist', 'album' ]) {
+            if (r[type]) params.push(type + '=' + encodeURIComponent(r[type]));
+        }
+        res += `<a class="sr" href="/api/mp3/${r.id}?${params.join('&')}" style="text-decoration:none"><img height="100px" src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span></div><br><br>`
+    }
+    return res;
+}
+
+app.get('/web/', (req, res) => {
+    bres(res, 200, 'text/html', loaded.index)
+})
+
+app.get('/web/search', (req, res) => {
+    var params = parseQueryString(req._parsedUrl.query);
+    var valid = ares(res, "query" in params, 'No query specified')
+    if (!valid) return;
+
+    c.search(params.query).then(info => {
+    // fs.promises.readFile("debug/search.json").then(info => {
+        // fs.writeFileSync("debug/search.json", JSON.stringify(info))
+        // info = JSON.parse(info)
+        bres(res, 200, 'text/html', loaded.search.replace('XXX', searchResultsToHTML(params.query, info)))
+    }).catch(err => {
+        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     })
 })
 

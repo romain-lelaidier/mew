@@ -175,7 +175,6 @@ class YTPlayer {
                         var nFuncName = matchNFuncName[2];
 
                         var [ Y, Yobj ] = this.extractSigFunctionCodeFromName(sigFuncName);
-                        console.log(Y, Yobj)
                         this.extractNFunctionCodeFromName(nFuncName, Y, Yobj);
     
                         this.extracted = true;
@@ -266,7 +265,17 @@ class YTMClient {
     }
 
     async init() {
-        this.pdb.init()
+        this.pdb.init();
+        for (const folder of [
+            "streams",
+            "thumbs",
+            "debug",
+            "testing"
+        ]) {
+            if (!fs.existsSync(folder)) {
+                fs.mkdirSync(folder)
+            }
+        }
         console.log("Connected to database.")
     }
 
@@ -282,8 +291,15 @@ class YTMClient {
                     return ["ALBUM", endpoint.browseEndpoint.browseId];
             }
         } else {
-            if ("playlistItemData" in renderer && "videoId" in renderer.playlistItemData)
-                return ["VIDEO",  renderer.playlistItemData.videoId];
+            if ("playlistItemData" in renderer && "videoId" in renderer.playlistItemData) {
+                var id = renderer.playlistItemData.videoId
+                try {
+                    if (renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType.includes('PODCAST'))
+                        return ['PODCAST', id];
+                    else
+                        return ["VIDEO", id ];
+                } catch(err) {}
+            }
         }
         return [null, null]
     }
@@ -333,7 +349,7 @@ class YTMClient {
 
     extractRendererInfo(renderer) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
-        if (type) {
+        if (type && ['VIDEO', 'ALBUM', 'ARTIST'].includes(type)) {
             var extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
             var musicResult = { 
                 type, id,
@@ -452,26 +468,72 @@ class YTMClient {
                     var cts2 = cts.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
                     // fs.writeFileSync("testing/cts2.json", JSON.stringify(cts2))
                     // extracting videos
-                    let musicResults = [];
+                    let musicResults = {};
+                    var addResult = obj => {
+                        if (!musicResults[obj.type]) musicResults[obj.type] = [];
+                        musicResults[obj.type].push(obj);
+                    };
+
+                    var songsEndpoint;
                     cts2.forEach(shelf => {
                         if ("musicCardShelfRenderer" in shelf) {
                             var renderer = shelf.musicCardShelfRenderer;
                             var musicResult = this.extractTopRendererInfo(renderer);
                             if (musicResult) {
                                 musicResult.top = true;
-                                musicResults.push(musicResult);
+                                addResult(musicResult);
                             }
                         }
                         if ("musicShelfRenderer" in shelf) {
+                            var forcedType;
+                            if (shelf.musicShelfRenderer.title.runs[0].text == 'Titres') {
+                                forcedType = 'SONG';
+                                songsEndpoint = shelf.musicShelfRenderer.bottomEndpoint;
+                            }
                             shelf.musicShelfRenderer.contents.forEach(musicObj => {
                                 var renderer = musicObj.musicResponsiveListItemRenderer;
                                 var musicResult = this.extractRendererInfo(renderer);
-                                if (musicResult) musicResults.push(musicResult);
+                                if (musicResult) {
+                                    if (forcedType) musicResult.type = forcedType;
+                                    addResult(musicResult);
+                                }
                             })
                         }
                     })
 
-                    resolve(musicResults)
+                    if (songsEndpoint) {
+                        axios.post(
+                            "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
+                            {
+                                context: {
+                                    ...this.context,
+                                    clickTracking: {clickTrackingParams: songsEndpoint.clickTrackingParams}
+                                },
+                                ...songsEndpoint.searchEndpoint,
+                            }
+                        ).then(res => {
+                            try {
+                                res.data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[1].musicShelfRenderer.contents.forEach(musicObj => {
+                                    try {
+                                        var renderer = musicObj.musicResponsiveListItemRenderer;
+                                        var musicResult = this.extractRendererInfo(renderer);
+                                        if (musicResult) {
+                                            musicResult.type = 'SONG'
+                                            addResult(musicResult);
+                                        }
+                                    } catch(err) {
+                                        console.log(err)
+                                    }
+                                })
+                            } catch(err) {
+                                console.log(err)
+                            }
+                            resolve(musicResults)
+                        })
+                    } else {
+                        resolve(musicResults)
+                    }
+
                 } catch(err) {
                     reject(err)
                 }
@@ -784,6 +846,119 @@ class YTMClient {
 
         })
     }
+
+    chooseFormat(formats) {
+        var audioSorted = formats
+            .filter(fmt => fmt.mimeType.includes("audio/webm"))
+            .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
+        if (audioSorted) return audioSorted[0];
+        return formats[1];
+    }
+
+    chooseThumbnail(thumbnails) {
+        var sorted = thumbnails
+            .sort((fmt1, fmt2) => fmt2.width - fmt1.width)
+        return sorted[0];
+    }
+
+    downloadFile(fileUrl, outputLocationPath, headers = {}) {
+        const writer = fs.createWriteStream(outputLocationPath);
+        return axios({
+            method: 'get',
+            url: fileUrl,
+            responseType: 'stream',
+            headers
+        }).then(response => {
+
+            //ensure that the user can call `then()` only when the file has
+            //been downloaded entirely.
+
+            return new Promise((resolve, reject) => {
+                response.data.pipe(writer);
+                let error = null;
+                writer.on('error', err => {
+                    error = err;
+                    writer.close();
+                    reject(err);
+                });
+                writer.on('close', () => {
+                    if (!error) {
+                    resolve(true);
+                    }
+                    //no need to call the reject here, as it will have been called in the
+                    //'error' stream;
+                });
+            });
+        });
+    }
+
+    extractVideoAudioAsMp3(info) {
+        return new Promise((resolve, reject) => {
+            this.extractVideo(info)
+            // fs.promises.readFile("testing/info.json")
+            .then(info => {
+                // info = JSON.parse(info.toString())
+                var fmt = this.chooseFormat(info.video.formats);
+                var thb = this.chooseThumbnail(info.video.thumbnails);
+
+                var streamPath = `./streams/${info.video.id}.webm`;
+                var outPath = `./streams/${info.video.id}.mp3`;
+                var thumbnailPath = `./thumbs/${info.video.id}.png`;
+
+                Promise.all([
+                    this.downloadFile(fmt.url, streamPath, { "Range": "bytes=0-" }),
+                    this.downloadFile(thb.url, thumbnailPath),
+                ]).then(() => {
+                    var ffmpegArgs = [
+                        '-y',
+                        '-i', streamPath, // Lire à partir du flux d'entrée standard
+                        '-i', thumbnailPath,
+                        '-map', '0:0', // Mapper l'audio
+                        '-map', '1:0', // Mapper la pochette
+                        '-c:v', 'copy', // Copier le flux vidéo (la pochette)
+                        '-id3v2_version', '3', // Utiliser ID3v2.3 pour les métadonnées
+                        '-metadata:s:v', 'title="Album cover"',
+                        '-metadata:s:v', 'comment="Cover (front)"',
+                        '-metadata', `title=${info.video.title}`,
+                        '-metadata', `artist=${info.video.artist}`,
+                        '-metadata', `album=${info.video.album || info.video.id}`,
+                        // '-map_metadata', '0:s:0',
+                        // '-b:a', '192k', // Débit binaire audio
+                        '-f', 'mp3', // Format de sortie
+                        outPath // Écrire vers le flux de sortie standard
+                    ];
+
+                    var ffmpegProcess = cp.spawn('ffmpeg', ffmpegArgs);
+
+                    let totalTime;
+                    var parseTime = timeString => parseInt(timeString.replace(/:/g, ''))
+                    ffmpegProcess.stderr.on('data', (data) => {
+                        data = data.toString();
+                        if (data.includes("Duration:") && data.includes("webm")) {
+                            var durationMatch = data.match(/Duration: ([0-9]+:[0-9]+:[0-9]+.[0-9]+)/);
+                            if (durationMatch) totalTime = parseTime(durationMatch[1]);
+                        }
+                        if (data.includes('time=')) {
+                            var progressMatch = data.match(/time=([0-9]+:[0-9]+:[0-9]+.[0-9]+)/);
+                            if (progressMatch) {
+                                var time = parseTime(progressMatch[1])
+                                // console.log(time / totalTime)
+                            }
+                        }
+                    });
+
+                    ffmpegProcess.on('close', (code) => {
+                        if (code == 0) resolve(fs.createReadStream(outPath));
+                        else reject("ffmpeg exited with code " + code);
+                    });
+
+                    ffmpegProcess.on('error', (err) => {
+                        reject(`FFmpeg process error: ${err}`);
+                    });
+                })
+            }).catch(reject)
+        })
+    }
 }
 
-module.exports = YTMClient;
+module.exports = { YTMClient, parseQueryString };
