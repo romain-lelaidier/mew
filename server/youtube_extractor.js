@@ -1,6 +1,7 @@
 const axios = require("axios")
 const fs = require('fs')
 const cp = require('child_process');
+const regescape = require('regexp.escape');
 const PlayerDB = require('./player_db')
 
 function parseQueryString(qs) {
@@ -72,36 +73,36 @@ class YTPlayer {
     }
 
     extractSigFunctionCodeFromName(sigFuncName) {
-        var match = this.js.match(`${sigFuncName}=function\\((\\w+)\\)`);
+        var match = this.js.match(`${regescape(sigFuncName)}=function\\((\\w+)\\)`);
         if (!match) throw `Error while extracting player: function ${sigFuncName} not found in JS player code.`
         var B = match[1];
         var coreCode = extractBracketsCode(match.index + match[0].length + 1, this.js);
         var rawInstructions = coreCode.split(';')
 
-        var matchY = rawInstructions[0].match(`${B}=${B}\\[([a-zA-Z]+)\\[([0-9]+)\\]\\]\\(\\1\\[([0-9]+)\\]\\)`)
+        var matchY = rawInstructions[0].match(`${regescape(B)}=${regescape(B)}\\[([a-zA-Z]+)\\[([0-9]+)\\]\\]\\(\\1\\[([0-9]+)\\]\\)`)
         if (!matchY) throw "Error while extracting player: Y not matched in function code";
         var Y = matchY[1];
         var Yobj;
         for (const matchYReg of [
-            `var ${Y}='([^']+)'`,
-            `var ${Y}="([^"]+)"`
+            `var ${regescape(Y)}='(.+)'\\.split`,
+            `var ${regescape(Y)}="(.+)"\\.split`
         ]) {
             var matchYobj = this.js.match(matchYReg);
             if (matchYobj) Yobj = matchYobj[1].split(';');
         }
         if (!Yobj) throw "Error while extracting player: could not find Y code";
 
-        var matchH = rawInstructions[1].match(`([a-zA-Z]+)\\[${Y}\\[([0-9]+)\\]\\]\\(${B},([0-9])+\\)`)
+        var matchH = rawInstructions[1].match(`([a-zA-Z]+)\\[${regescape(Y)}\\[([0-9]+)\\]\\]\\(${regescape(B)},([0-9])+\\)`)
         if (!matchH) throw "Error while extracting player: H not matched in function code";
         var H = matchH[1];
         var Hcode = extractBracketsCode(this.js.indexOf(`var ${H}=`) + 6 + H.length, this.js).replaceAll('\n', '')
 
         var matchYrep;
-        while (matchYrep = Hcode.match(`${Y}\\[([0-9]+)\\]`)) {
+        while (matchYrep = Hcode.match(`${regescape(Y)}\\[([0-9]+)\\]`)) {
             Hcode = Hcode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
         }
 
-        while (matchYrep = coreCode.match(`${Y}\\[([0-9]+)\\]`)) {
+        while (matchYrep = coreCode.match(`${regescape(Y)}\\[([0-9]+)\\]`)) {
             coreCode = coreCode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
         }
 
@@ -110,14 +111,14 @@ class YTPlayer {
     }
 
     extractNFunctionCodeFromName(nFuncName, Y, Yobj) {
-        var match = this.js.match(`${nFuncName}=function\\((\\w+)\\)`);
+        var match = this.js.match(`${regescape(nFuncName)}=function\\((\\w+)\\)`);
         if (!match) throw `N Function ${nFuncName} not found in player code`
         var B = match[1];
         var coreCode = extractBracketsCode(match.index + match[0].length + 1, this.js);
 
         var undefinedIdx = Yobj.includes('undefined') ? Yobj.indexOf('undefined') : '[0-9]+';
 
-        var match = coreCode.match(`;\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*(?:(["\\'])undefined\\1|${Y}\\[${undefinedIdx}\\])\\s*\\)\\s*return\\s+${B};`)
+        var match = coreCode.match(`;\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*(?:(["\\'])undefined\\1|${regescape(Y)}\\[${undefinedIdx}\\])\\s*\\)\\s*return\\s+${regescape(B)};`)
         var fixedNFuncCode = coreCode.replace(match[0], ";")
 
         this.nfc = `${B}=>{var ${Y}=${JSON.stringify(Yobj)};${fixedNFuncCode}}`
