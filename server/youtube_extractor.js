@@ -81,9 +81,15 @@ class YTPlayer {
         var matchY = rawInstructions[0].match(`${B}=${B}\\[([a-zA-Z]+)\\[([0-9]+)\\]\\]\\(\\1\\[([0-9]+)\\]\\)`)
         if (!matchY) throw "Error while extracting player: Y not matched in function code";
         var Y = matchY[1];
-        var matchYobj = this.js.match(`var ${Y}='(.+)'`)
-        if (!matchYobj) throw "Error while extracting player: could not find Y code";
-        var Yobj = matchYobj[1].split(';')
+        var Yobj;
+        for (const matchYReg of [
+            `var ${Y}='([^']+)'`,
+            `var ${Y}="([^"]+)"`
+        ]) {
+            var matchYobj = this.js.match(matchYReg);
+            if (matchYobj) Yobj = matchYobj[1].split(';');
+        }
+        if (!Yobj) throw "Error while extracting player: could not find Y code";
 
         var matchH = rawInstructions[1].match(`([a-zA-Z]+)\\[${Y}\\[([0-9]+)\\]\\]\\(${B},([0-9])+\\)`)
         if (!matchH) throw "Error while extracting player: H not matched in function code";
@@ -99,28 +105,22 @@ class YTPlayer {
             coreCode = coreCode.replaceAll(matchYrep[0], "'" + Yobj[matchYrep[1]] + "'")
         }
 
-        this.sfc = `B=>{var ${H}={${Hcode}};${coreCode}}`
+        this.sfc = `${B}=>{var ${H}={${Hcode}};${coreCode}}`;
+        return [ Y, Yobj ];
     }
 
-    extractNFunctionCodeFromName(nFuncName) {
+    extractNFunctionCodeFromName(nFuncName, Y, Yobj) {
         var match = this.js.match(`${nFuncName}=function\\((\\w+)\\)`);
         if (!match) throw `N Function ${nFuncName} not found in player code`
         var B = match[1];
         var coreCode = extractBracketsCode(match.index + match[0].length + 1, this.js);
-
-        var matchY = coreCode.match(`var [a-zA-Z0-9]+=${B}\\[([a-zA-Z0-9]+)\\[`)
-        if (!matchY) throw `N Function is a different form`
-        var Y = matchY[1];
-        var matchYobj = this.js.match(`var ${Y}='(.+)'`)
-        if (!matchYobj) throw "N function Y code was not found in player";
-        var Yobj = matchYobj[1].split(';')
 
         var undefinedIdx = Yobj.includes('undefined') ? Yobj.indexOf('undefined') : '[0-9]+';
 
         var match = coreCode.match(`;\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*(?:(["\\'])undefined\\1|${Y}\\[${undefinedIdx}\\])\\s*\\)\\s*return\\s+${B};`)
         var fixedNFuncCode = coreCode.replace(match[0], ";")
 
-        this.nfc = `B=>{var Y='${matchYobj[1]}'.split(';');${fixedNFuncCode}}`
+        this.nfc = `${B}=>{var ${Y}=${JSON.stringify(Yobj)};${fixedNFuncCode}}`
     }
 
     dbLoad(pdb) {
@@ -132,7 +132,7 @@ class YTPlayer {
             this.dbLoad(pdb).then(res => {
                 resolve()
             }).catch(err => {
-                console.log("Player not saved, downloading from Web")
+                console.log("Player not saved, downloading from Web :", this.buildUrl())
                 this.downloadFromWeb().then(() => {
                     try {
                         // extracting signature timestamp from player (to indicate API which player version we're using)
@@ -170,12 +170,13 @@ class YTPlayer {
                         if (!sigFuncName) return reject("Could not extract signature cipher function name");
 
                         // var match = player.match(/(?xs)[;\n](?:(?P<f>function\s+)|(?:var\s+)?)(?P<funcname>[a-zA-Z0-9_$]+)\s*(?(f)|=\s*function\s*)\((?P<argname>[a-zA-Z0-9_$]+)\)\s*\{(?:(?!\}[;\n]).)+\}\s*catch\(\s*[a-zA-Z0-9_$]+\s*\)\s*\{\s*return\s+%s\[%d\]\s*\+\s*(?P=argname)\s*\}\s*return\s+[^}]+\}[;\n]/)
-                        var matchNFuncName = this.js.match(/\nvar ([a-zA-Z][a-zA-Z0-9]+)=\[([a-zA-Z][a-zA-Z0-9]+)\];/)
+                        var matchNFuncName = this.js.match(/\nvar ([a-zA-Z_$][a-zA-Z0-9_$]*)=\[([a-zA-Z_$][a-zA-Z0-9_$]*)\];/)
                         if (!matchNFuncName) return reject("Could not extract n cipher function name");
                         var nFuncName = matchNFuncName[2];
-    
-                        this.extractSigFunctionCodeFromName(sigFuncName);
-                        this.extractNFunctionCodeFromName(nFuncName)
+
+                        var [ Y, Yobj ] = this.extractSigFunctionCodeFromName(sigFuncName);
+                        console.log(Y, Yobj)
+                        this.extractNFunctionCodeFromName(nFuncName, Y, Yobj);
     
                         this.extracted = true;
 
@@ -783,7 +784,6 @@ class YTMClient {
 
         })
     }
-
 }
 
 module.exports = YTMClient;
