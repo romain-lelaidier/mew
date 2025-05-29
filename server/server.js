@@ -201,8 +201,13 @@ function searchResultsToHTML(query, info) {
     return res;
 }
 
+function changeHTMLLinks(baseURL, html) {
+    return html.replaceAll('/web/', baseURL + '/web/').replaceAll('/api/', baseURL + '/api/')
+}
+
 app.get('/web/', (req, res) => {
-    bres(res, 200, 'text/html', loaded.index)
+    var params = parseQueryString(req._parsedUrl.query);
+    bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.index))
 })
 
 app.get('/web/search', (req, res) => {
@@ -214,7 +219,7 @@ app.get('/web/search', (req, res) => {
     // fs.promises.readFile("debug/search.json").then(info => {
     //     info = JSON.parse(info)
         // fs.writeFileSync("debug/search.json", JSON.stringify(info))
-        bres(res, 200, 'text/html', loaded.search.replace('XXX', searchResultsToHTML(params.query, info)))
+        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.search.replace('XXX', searchResultsToHTML(params.query, info))))
     }).catch(err => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     })
