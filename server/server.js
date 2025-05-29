@@ -75,7 +75,7 @@ app.get('/api/search/:query', (req, res) => {
         fs.createReadStream(file).pipe(res, end=true)
     } else {
         c.search(query).then(results => {
-            fs.writeFileSync(file, JSON.stringify(results));
+            // fs.writeFileSync(file, JSON.stringify(results.SONG));
             jres(res, results)
         }).catch(err => {
             console.log(err)
@@ -162,15 +162,42 @@ for (const webFile of [ 'index', 'search' ]) {
     loaded[webFile] = fs.readFileSync(`./web/${webFile}.html`).toString();
 }
 
+function durationToString(d) {
+    const pad = (i, w, s) => (s.length < i) ? pad(i, w, w + s) : s;
+    return Math.floor(d / 60) + ':' + pad(2, '0', (d%60).toString())
+}
+
+function viewsToString(v) {
+    if (Math.floor(v/1e9) > 0) return `${Math.floor(v/1e8)/10}Mds`
+    if (Math.floor(v/1e6) > 0) return `${Math.floor(v/1e5)/10}M`
+    if (Math.floor(v/1e3) > 0) return `${Math.floor(v/1e2)/10}k`
+    return v.toString()
+}
+
 function searchResultsToHTML(query, info) {
-    var res = `Search results for <span style="text-decoration:underline">${query}</span> :<br><br>`;
-    for (var r of info.SONG) {
+    var res = `Search results for <span style="text-decoration:underline">${query}</span> :<br><br><form action="/web/search"><input type="text" name="query" value="${query}"><input type="submit" value="Search"></form>`;
+    var songsHTML = "";
+    for (var r of info.SONG.slice(0, 20)) {
         var params = [];
         for (var type of [ 'title', 'artist', 'album' ]) {
             if (r[type]) params.push(type + '=' + encodeURIComponent(r[type]));
         }
-        res += `<a class="sr" href="/api/mp3/${r.id}?${params.join('&')}" style="text-decoration:none"><img height="100px" src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span></div><br><br>`
+        var songDetails = [];
+        if ('duration' in r) songDetails.push(durationToString(r.duration));
+        if ('views' in r) songDetails.push(viewsToString(r.views));
+        songsHTML += `<a href="/api/mp3/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
     }
+    var artistsHTML = "";
+    for (var r of info.ARTIST) {
+        artistsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
+    }
+    var albumsHTML = "";
+    for (var r of info.ALBUM) {
+        albumsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
+    }
+    res += `<h2>Songs</h2><div id="SONG">${songsHTML}</div>`
+    res += `<h2>Artists</h2><div id="ARTIST">${artistsHTML}</div>`
+    res += `<h2>Albums</h2><div id="ALBUM">${albumsHTML}</div>`
     return res;
 }
 
@@ -185,8 +212,8 @@ app.get('/web/search', (req, res) => {
 
     c.search(params.query).then(info => {
     // fs.promises.readFile("debug/search.json").then(info => {
+    //     info = JSON.parse(info)
         // fs.writeFileSync("debug/search.json", JSON.stringify(info))
-        // info = JSON.parse(info)
         bres(res, 200, 'text/html', loaded.search.replace('XXX', searchResultsToHTML(params.query, info)))
     }).catch(err => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
