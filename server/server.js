@@ -2,18 +2,19 @@ const express = require('express');
 const http = require('http');
 const fs = require('fs');
 const app = express();
-app.use(express.json())
 const PORT = process.env.NODE_PORT || 8000;
-const { YTMClient, parseQueryString } = require("./youtube_extractor")
 const DEBUG = process.env.DEBUG || false;
+
+const utils = require('./utils')
+const YTMClient = require('./youtube_extractor')
 
 if (DEBUG) {
     console.log("DEBUG MODE")
 }
 
 const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
-    ? fs.readFileSync("./mysql_config.json")
-    : process.env.MYSQL_CONFIG);
+? fs.readFileSync("./mysql_config.json")
+: process.env.MYSQL_CONFIG);
 
 // HTTPS credentials
 // const privateKey = fs.readFileSync('server.key', 'utf8');
@@ -22,6 +23,8 @@ const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
 
 const c = new YTMClient(MYSQL_CONFIG)
 c.init()
+
+app.use(express.json())
 
 function bres(res, code, contentType, data) {
     // basic response
@@ -101,7 +104,7 @@ app.post('/api/extract_video/', (req, res) => {
         console.log("extract saved")
         fs.createReadStream(file).pipe(res, end=true)
     } else {
-        c.extractVideo(req.body.info).then(info => {
+        c.EU(req.body.info).then(info => {
             if ("mobapp" in req.body && req.body.mobapp == true) {
                 info.video.streamUrl = info.video.formats
                     .filter(fmt => fmt.mimeType.includes("audio/webm"))
@@ -123,7 +126,13 @@ app.get('/api/extract_video/:id', (req, res) => {
     var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
     if (!valid) return;
 
-    c.extractVideo({ id }).then(info => {
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.EU(obj).then(info => {
         jres(res, info)
     }).catch(err => {
         console.log(err)
@@ -137,18 +146,18 @@ app.get('/api/mp3/:id', (req, res) => {
     if (!valid) return;
 
     var obj = { id };
-    var params = parseQueryString(req._parsedUrl.query);
+    var params = utils.parseQueryString(req._parsedUrl.query);
     for (var [ key, value ] of Object.entries(params)) {
         obj[key] = value;
     }
 
     console.log("Downloading", obj)
 
-    c.extractVideoAudioAsMp3(obj).then(stream => {
+    c.EUDC(obj).then(path => {
         res.status(200);
         res.setHeader('Content-type', 'audio/mpeg');
         res.setHeader('Content-disposition', 'attachment');
-        stream.pipe(res, end=true);
+        fs.createReadStream(path).pipe(res, end=true);
     }).catch(err => {
         console.log(err)
         bres(res, 500, 'text/plain', err.toString())
@@ -174,10 +183,11 @@ function viewsToString(v) {
     return v.toString()
 }
 
-function searchResultsToHTML(query, info) {
-    var res = `Search results for <span style="text-decoration:underline">${query}</span> :<br><br><form action="/web/search"><input type="text" name="query" value="${query}"><input type="submit" value="Search"></form>`;
+function searchResultsToHTML(params, info) {
+    var res = `Search results for <span style="text-decoration:underline">${params.query}</span> :<br><br><form action="/web/search"><input type="text" name="query" value="${params.query}"><input type="submit" value="Search"></form>`;
     var songsHTML = "";
-    for (var r of info.SONG.slice(0, 20)) {
+    var maxCount = params.small ? 4 : 20;
+    for (var r of info.SONG.slice(0, maxCount)) {
         var params = [];
         for (var type of [ 'title', 'artist', 'album' ]) {
             if (r[type]) params.push(type + '=' + encodeURIComponent(r[type]));
@@ -185,14 +195,14 @@ function searchResultsToHTML(query, info) {
         var songDetails = [];
         if ('duration' in r) songDetails.push(durationToString(r.duration));
         if ('views' in r) songDetails.push(viewsToString(r.views));
-        songsHTML += `<a href="/api/mp3/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
+        songsHTML += `<a href="/web/download/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
     }
     var artistsHTML = "";
-    for (var r of info.ARTIST) {
+    for (var r of info.ARTIST.slice(0, maxCount)) {
         artistsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
     }
     var albumsHTML = "";
-    for (var r of info.ALBUM) {
+    for (var r of info.ALBUM.slice(0, maxCount)) {
         albumsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
     }
     res += `<h2>Songs</h2><div id="SONG">${songsHTML}</div>`
@@ -202,27 +212,44 @@ function searchResultsToHTML(query, info) {
 }
 
 function changeHTMLLinks(baseURL, html) {
+    if (!baseURL) return html;
     return html.replaceAll('/web/', baseURL + '/web/').replaceAll('/api/', baseURL + '/api/')
 }
 
 app.get('/web/', (req, res) => {
-    var params = parseQueryString(req._parsedUrl.query);
+    var params = utils.parseQueryString(req._parsedUrl.query);
     bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.index))
 })
 
 app.get('/web/search', (req, res) => {
-    var params = parseQueryString(req._parsedUrl.query);
+    var params = utils.parseQueryString(req._parsedUrl.query);
     var valid = ares(res, "query" in params, 'No query specified')
     if (!valid) return;
 
-    c.search(params.query).then(info => {
+    c.search(params.query, ['SONG']).then(info => {
     // fs.promises.readFile("debug/search.json").then(info => {
     //     info = JSON.parse(info)
-        // fs.writeFileSync("debug/search.json", JSON.stringify(info))
-        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.search.replace('XXX', searchResultsToHTML(params.query, info))))
+        fs.writeFileSync("debug/search.json", JSON.stringify(info))
+        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.search.replace('XXX', searchResultsToHTML(params, info))))
     }).catch(err => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     })
+})
+
+app.get('/web/download/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.
+
+    res.end("hello")
 })
 
 const httpServer = http.createServer(app);
