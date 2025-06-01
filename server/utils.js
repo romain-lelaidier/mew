@@ -1,3 +1,6 @@
+const fs = require('fs');
+const axios = require('axios');
+
 function parseQueryString(qs) {
     var params = new URLSearchParams(qs);
     var object = {};

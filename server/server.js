@@ -3,18 +3,13 @@ const http = require('http');
 const fs = require('fs');
 const app = express();
 const PORT = process.env.NODE_PORT || 8000;
-const DEBUG = process.env.DEBUG || false;
 
 const utils = require('./utils')
 const YTMClient = require('./youtube_extractor')
 
-if (DEBUG) {
-    console.log("DEBUG MODE")
-}
-
 const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
-? fs.readFileSync("./mysql_config.json")
-: process.env.MYSQL_CONFIG);
+    ? fs.readFileSync("./mysql_config.json")
+    : process.env.MYSQL_CONFIG);
 
 // HTTPS credentials
 // const privateKey = fs.readFileSync('server.key', 'utf8');
@@ -54,43 +49,25 @@ app.get('/', (req, res) => {
 app.get('/api/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
 
-    let file = "debug/search_suggestions.json"
-    if (DEBUG && fs.existsSync(file)) {
-        console.log("search suggestions saved")
-        fs.createReadStream(file).pipe(res, end=true)
-    } else {
-        c.searchSuggestions(query).then(results => {
-            fs.writeFileSync(file, JSON.stringify(results));
-            jres(res, results)
-        }).catch(err => {
-            console.log(err)
-            bres(res, 500, 'text/plain', err.toString())
-        })
-    }
+    c.searchSuggestions(query).then(results => {
+        fs.writeFileSync(file, JSON.stringify(results));
+        jres(res, results)
+    }).catch(err => {
+        console.log(err)
+        bres(res, 500, 'text/plain', err.toString())
+    })
 })
 
 app.get('/api/search/:query', (req, res) => {
     const query = req.params.query;
 
-    let file = "debug/search.json"
-    if (DEBUG && fs.existsSync(file)) {
-        console.log("search saved")
-        fs.createReadStream(file).pipe(res, end=true)
-    } else {
-        c.search(query).then(results => {
-            // fs.writeFileSync(file, JSON.stringify(results.SONG));
-            jres(res, results)
-        }).catch(err => {
-            console.log(err)
-            bres(res, 500, 'text/plain', err.toString())
-        })
-    }
-})
-
-app.get('/api/convert/:url', (req, res) => {
-    res.status(200);
-    res.setHeader('Content-Type', 'audio/webm');
-    fs.createReadStream("testing/test.webm").pipe(res, end=true)
+    c.search(query).then(results => {
+        // fs.writeFileSync(file, JSON.stringify(results.SONG));
+        jres(res, results)
+    }).catch(err => {
+        console.log(err)
+        bres(res, 500, 'text/plain', err.toString())
+    })
 })
 
 app.post('/api/extract_video/', (req, res) => {
@@ -99,26 +76,20 @@ app.post('/api/extract_video/', (req, res) => {
         && ares(res, req.body.info.id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
     if (!valid) return;
 
-    let file = "debug/extract.json"
-    if (DEBUG && fs.existsSync(file)) {
-        console.log("extract saved")
-        fs.createReadStream(file).pipe(res, end=true)
-    } else {
-        c.EU(req.body.info).then(info => {
-            if ("mobapp" in req.body && req.body.mobapp == true) {
-                info.video.streamUrl = info.video.formats
-                    .filter(fmt => fmt.mimeType.includes("audio/webm"))
-                    .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
-                    [0].url;
-                console.log(info)
-                delete info.video.formats;
-            }
-            fs.writeFileSync(file, JSON.stringify(info));
-            jres(res, info)
-        }).catch(err => {
-            bres(res, 500, 'text/plain', err.toString())
-        })
-    }
+    c.EU(req.body.info).then(info => {
+        if ("mobapp" in req.body && req.body.mobapp == true) {
+            info.video.streamUrl = info.video.formats
+                .filter(fmt => fmt.mimeType.includes("audio/webm"))
+                .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
+                [0].url;
+            console.log(info)
+            delete info.video.formats;
+        }
+        fs.writeFileSync(file, JSON.stringify(info));
+        jres(res, info)
+    }).catch(err => {
+        bres(res, 500, 'text/plain', err.toString())
+    })
 })
 
 app.get('/api/extract_video/:id', (req, res) => {
@@ -167,7 +138,7 @@ app.get('/api/mp3/:id', (req, res) => {
 // web server
 
 var loaded = {};
-for (const webFile of [ 'index', 'search' ]) {
+for (const webFile of [ 'index', 'search', 'waiter' ]) {
     loaded[webFile] = fs.readFileSync(`./web/${webFile}.html`).toString();
 }
 
@@ -195,7 +166,7 @@ function searchResultsToHTML(params, info) {
         var songDetails = [];
         if ('duration' in r) songDetails.push(durationToString(r.duration));
         if ('views' in r) songDetails.push(viewsToString(r.views));
-        songsHTML += `<a href="/web/download/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
+        songsHTML += `<a href="/web/eudc/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
     }
     var artistsHTML = "";
     for (var r of info.ARTIST.slice(0, maxCount)) {
@@ -209,6 +180,24 @@ function searchResultsToHTML(params, info) {
     res += `<h2>Artists</h2><div id="ARTIST">${artistsHTML}</div>`
     res += `<h2>Albums</h2><div id="ALBUM">${albumsHTML}</div>`
     return res;
+}
+
+function waiterHTML(params, info) {
+    var { video } = info;
+    const formatProgress = p => {
+        if (p == -1) return "Info extracted";
+        if (p == 1000) return "Success";
+        if (p >= 0 && p <= 1000) return `Converting (${p/10}%)`;
+        return p.toString()
+    }
+    return `<div>
+        <span>State: ${formatProgress(video.progress)}</span><br>
+        <a href="/web/download/${video.id}">${video.progress == 1000 ? "Click to download" : ""}</a><br>
+        <img width="120" src="${video.thumbnail}"/><br>
+        <span><b>${video.title}</b></span><br>
+        <span>${video.artist}</span><br>
+        <span><i>${video.album}</i></span><br>
+    </div>`
 }
 
 function changeHTMLLinks(baseURL, html) {
@@ -236,7 +225,7 @@ app.get('/web/search', (req, res) => {
     })
 })
 
-app.get('/web/download/:id', (req, res) => {
+app.get('/web/eudc/:id', (req, res) => {
     const id = req.params.id;
     var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
     if (!valid) return;
@@ -247,10 +236,38 @@ app.get('/web/download/:id', (req, res) => {
         obj[key] = value;
     }
 
-    c.
-
-    res.end("hello")
+    c.initiateEUDC(obj)
+    .then(info => {
+        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.waiter.replace('XXX', waiterHTML(params, info))))
+    }).catch(err => {
+        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+    });
 })
+
+app.get('/web/download/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    c.ddb.loadState(id)
+    .then(obj => {
+        if (obj && obj.progress == 1000) {
+            // serving mp3 file
+            var path = `./streams/${id}.mp3`;
+            var contentLength = fs.statSync(path).size;
+            res.status(200);
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Content-Disposition', 'attachment');
+            res.setHeader('Content-Length', contentLength);
+            res.set('Transfer-Encoding', 'chunked');
+            fs.createReadStream(path).pipe(res);
+        } else {
+            bres(res, 404, 'text/plain', 'Video not downloaded')
+        }
+    }).catch(err => {
+        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+    })
+});
 
 const httpServer = http.createServer(app);
 httpServer.listen(PORT, "::", () => {

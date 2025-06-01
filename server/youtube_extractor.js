@@ -3,6 +3,7 @@ const fs = require('fs')
 const cp = require('child_process');
 
 const PlayerDB = require('./player_db');
+const DownloadsDB = require('./downloads_db');
 const YTSearchParser = require('./youtube_search_parser')
 const YTPlayer = require('./youtube_player')
 const utils = require('./utils');
@@ -59,8 +60,10 @@ class YTMClient {
                 "consistencyTokenJars": []
             }
         }
-        this.pdb = new PlayerDB(dbConfig)
-        this.parser = new YTSearchParser()
+
+        this.pdb = new PlayerDB(dbConfig);
+        this.ddb = new DownloadsDB(dbConfig);
+        this.parser = new YTSearchParser();
 
         this.headers = {
             'X-YouTube-Client-Name': '7',
@@ -76,6 +79,8 @@ class YTMClient {
         // Initializes the database and creates the necessary folders.
 
         this.pdb.init();
+        this.ddb.init();
+
         for (const folder of [
             "streams",
             "thumbs",
@@ -523,8 +528,7 @@ class YTMClient {
                 this.getPlayer(info.id),
                 this.getYtcfg(),
                 this.downloadNextData(info.id, info.pid),
-            ])
-            .then(res => {
+            ]).then(res => {
                 var [ player, ytcfg, next ] = res;
                 this.downloadVideoData(info.id, player, ytcfg)
                 .then(extractedInfo => {
@@ -552,27 +556,30 @@ class YTMClient {
                     })
                 }).catch(reject);
             }).catch(reject);
-
         })
     }
 
-    DC(info) {
+    DC(info, onProgress) {
         // Downloads audio stream and thumbnail from the extractedInfo.
         // Converts it to mp3 and adds metadata.
         // The returned Promise object resolves on a string : the path to the mp3 file.
 
-        return new Promise((resolve, reject) => {
-            var fmt = this.chooseFormat(info.video.formats);
-            var thb = this.chooseThumbnail(info.video.thumbnails);
+        onProgress ||= () => {};
 
-            var streamPath = `./streams/${info.video.id}.webm`;
-            var outPath = `./streams/${info.video.id}.mp3`;
-            var thumbnailPath = `./thumbs/${info.video.id}.png`;
+        return new Promise((resolve, reject) => {
+            var fmt = this.chooseFormat(info.formats);
+            var thb = this.chooseThumbnail(info.thumbnails);
+
+            var streamPath = `./streams/${info.id}.webm`;
+            var outPath = `./streams/${info.id}.mp3`;
+            var thumbnailPath = `./thumbs/${info.id}.png`;
 
             Promise.all([
                 utils.downloadFile(fmt.url, streamPath, { "Range": "bytes=0-" }),
                 utils.downloadFile(thb.url, thumbnailPath),
             ]).then(() => {
+                onProgress(0);
+
                 var ffmpegArgs = [
                     '-y',
                     '-i', streamPath, // Lire à partir du flux d'entrée standard
@@ -583,9 +590,9 @@ class YTMClient {
                     '-id3v2_version', '3', // Utiliser ID3v2.3 pour les métadonnées
                     '-metadata:s:v', 'title="Album cover"',
                     '-metadata:s:v', 'comment="Cover (front)"',
-                    '-metadata', `title=${info.video.title}`,
-                    '-metadata', `artist=${info.video.artist}`,
-                    '-metadata', `album=${info.video.album || info.video.id}`,
+                    '-metadata', `title=${info.title}`,
+                    '-metadata', `artist=${info.artist}`,
+                    '-metadata', `album=${info.album || info.id}`,
                     // '-map_metadata', '0:s:0',
                     // '-b:a', '192k', // Débit binaire audio
                     '-f', 'mp3', // Format de sortie
@@ -607,13 +614,18 @@ class YTMClient {
                         if (progressMatch) {
                             var time = parseTime(progressMatch[1])
                             var progress = time / totalTime;
+                            onProgress(Math.floor(progress*1000));
                             // console.log(progress)
                         }
                     }
                 });
 
                 ffmpegProcess.on('close', (code) => {
-                    if (code == 0) resolve(outPath);
+                    if (code == 0) {
+                        fs.unlinkSync(streamPath);
+                        onProgress(1000);
+                        resolve(outPath);
+                    }
                     else reject("ffmpeg exited with code " + code);
                 });
 
@@ -633,10 +645,38 @@ class YTMClient {
             // fs.promises.readFile("testing/info.json")
             .then(info => {
                 // info = JSON.parse(info.toString())
-                this.DC(info)
+                this.DC(info.video)
                 .then(resolve)
                 .catch(reject);
             }).catch(reject)
+        })
+    }
+
+    initiateEUDC(info) {
+        // Initiates extraction, unlocking, download and conversion of video to mp3 file.
+        // The returned Promise resolves with the info when the video data is extracted.
+
+        return new Promise((resolve, reject) => {
+            this.ddb.loadState(info.id)
+            .then(dobj => {
+                if (dobj) return resolve({ video: dobj });
+                this.EU(info)
+                // fs.promises.readFile("testing/info.json")
+                .then(info => {
+                    // info = JSON.parse(info.toString());
+                    var { video, next } = info;
+                    video.thumbnail = this.chooseThumbnail(video.thumbnails).url;
+                    video.progress = -1;
+                    this.ddb.addDownload(video)
+                    .then(() => {
+                        resolve(info);
+                        this.DC(video, progress => {
+                            this.ddb.updateProgress(video.id, progress)
+                            .catch(console.error)
+                        });
+                    }).catch(reject);
+                }).catch(reject);
+            }).catch(reject);
         })
     }
 }
