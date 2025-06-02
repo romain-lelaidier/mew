@@ -138,9 +138,10 @@ app.get('/api/mp3/:id', (req, res) => {
 // web server
 
 var loaded = {};
-for (const webFile of [ 'index', 'search', 'waiter' ]) {
+for (const webFile of [ 'index', 'search', 'waiter', 'downloads' ]) {
     loaded[webFile] = fs.readFileSync(`./web/${webFile}.html`).toString();
 }
+loaded.css = fs.readFileSync('./web/style.css').toString()
 
 function durationToString(d) {
     const pad = (i, w, s) => (s.length < i) ? pad(i, w, w + s) : s;
@@ -166,38 +167,50 @@ function searchResultsToHTML(params, info) {
         var songDetails = [];
         if ('duration' in r) songDetails.push(durationToString(r.duration));
         if ('views' in r) songDetails.push(viewsToString(r.views));
-        songsHTML += `<a href="/web/eudc/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
+        songsHTML += `<a class="SONG" href="/web/eudc/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
     }
     var artistsHTML = "";
     for (var r of info.ARTIST.slice(0, maxCount)) {
-        artistsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
+        artistsHTML += `<a class="ARTIST" href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
     }
     var albumsHTML = "";
     for (var r of info.ALBUM.slice(0, maxCount)) {
-        albumsHTML += `<a href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
+        albumsHTML += `<a class="SONG" href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
     }
-    res += `<h2>Songs</h2><div id="SONG">${songsHTML}</div>`
-    res += `<h2>Artists</h2><div id="ARTIST">${artistsHTML}</div>`
-    res += `<h2>Albums</h2><div id="ALBUM">${albumsHTML}</div>`
+    res += `<h2>Songs</h2><div class="holder">${songsHTML}</div>`
+    res += `<h2>Artists</h2><div class="holder">${artistsHTML}</div>`
+    res += `<h2>Albums</h2><div class="holder">${albumsHTML}</div>`
     return res;
+}
+
+function generateDownloadDiv(params, video) {
+    const formatProgress = p => {
+        if (p < 0 || p > 2000) return p.toString();
+        if (p == 0) return "Info extracted";
+        if (p < 1000) return `Downloading (${p/10}%)`;
+        if (p < 2000) return `Converting (${(p-1000)/10}%)`;
+        return "Success"
+    }
+    var state = video.progress == 2000
+        ? `<a href="/web/download/${video.id}">Download MP3</a>`
+        : `<span>State: ${formatProgress(video.progress)}</span>`;
+    return `<div>
+        <img width="120" src="${video.smallThumb}"/><br>
+        <span><b>${video.title}</b></span><br>
+        <span>${video.artist}</span><br>
+        <span><i>${video.album}</i></span><br>
+        ${state}<br>
+    </div>`
 }
 
 function waiterHTML(params, info) {
     var { video } = info;
-    const formatProgress = p => {
-        if (p == -1) return "Info extracted";
-        if (p == 1000) return "Success";
-        if (p >= 0 && p <= 1000) return `Converting (${p/10}%)`;
-        return p.toString()
-    }
-    return `<div>
-        <span>State: ${formatProgress(video.progress)}</span><br>
-        <a href="/web/download/${video.id}">${video.progress == 1000 ? "Click to download" : ""}</a><br>
-        <img width="120" src="${video.thumbnail}"/><br>
-        <span><b>${video.title}</b></span><br>
-        <span>${video.artist}</span><br>
-        <span><i>${video.album}</i></span><br>
-    </div>`
+    return generateDownloadDiv(params, video)
+}
+
+function downloadsHTML(params, videos) {
+    return videos.map(v => generateDownloadDiv(params, v)).join('')
+    // return generateDownloadDiv(params, video)
 }
 
 function changeHTMLLinks(baseURL, html) {
@@ -208,6 +221,10 @@ function changeHTMLLinks(baseURL, html) {
 app.get('/web/', (req, res) => {
     var params = utils.parseQueryString(req._parsedUrl.query);
     bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.index))
+})
+
+app.get('/web/css', (req, res) => {
+    bres(res, 200, 'text/css', loaded.css);
 })
 
 app.get('/web/search', (req, res) => {
@@ -251,7 +268,7 @@ app.get('/web/download/:id', (req, res) => {
 
     c.ddb.loadState(id)
     .then(obj => {
-        if (obj && obj.progress == 1000) {
+        if (obj && obj.progress == 2000) {
             // serving mp3 file
             var path = `./streams/${id}.mp3`;
             var contentLength = fs.statSync(path).size;
@@ -268,6 +285,17 @@ app.get('/web/download/:id', (req, res) => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     })
 });
+
+app.get('/web/down', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+
+    c.ddb.loadAll()
+    .then(results => {
+        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.downloads.replace('XXX', downloadsHTML(params, results))))
+    }).catch(err => {
+        bres(500, 'text/plain', 500, err.toString())
+    })
+})
 
 const httpServer = http.createServer(app);
 httpServer.listen(PORT, "::", () => {

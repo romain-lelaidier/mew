@@ -15,7 +15,7 @@ class YTSearchParser {
                     musicResult[type] = run.text;
                 }
             }
-            
+
             if (Object.keys(run).length == 1) {
                 var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
                 if (yearMatch) musicResult.year = parseInt(yearMatch[0]);
@@ -128,6 +128,12 @@ class YTSearchParser {
         }
     }
 
+    addResult(obj, musicResults) {
+        if (!musicResults[obj.type]) musicResults[obj.type] = [];
+        if (musicResults[obj.type].filter(mr => mr.id == obj.id).length > 0) return;
+        musicResults[obj.type].push(obj);
+    }
+
     extractSearchResults(data, musicResults) {
         // Extracts search results videos from the YouTube JSON object.
         // Adds the results to the musicResults object.
@@ -145,18 +151,13 @@ class YTSearchParser {
 
         if (!utils.isIterable(contents)) return endpoints;
 
-        var addResult = obj => {
-            if (!musicResults[obj.type]) musicResults[obj.type] = [];
-            musicResults[obj.type].push(obj);
-        };
-
         contents.forEach(shelf => {
             if ("musicCardShelfRenderer" in shelf) {
                 var renderer = shelf.musicCardShelfRenderer;
                 var musicResult = this.extractTopRendererInfo(renderer);
                 if (musicResult) {
                     musicResult.top = true;
-                    addResult(musicResult);
+                    this.addResult(musicResult, musicResults);
                 }
             }
             if ("musicShelfRenderer" in shelf) {
@@ -170,7 +171,7 @@ class YTSearchParser {
                     var musicResult = this.extractRendererInfo(renderer);
                     if (musicResult) {
                         if (forcedType) musicResult.type = forcedType;
-                        addResult(musicResult);
+                        this.addResult(musicResult, musicResults);
                     }
                 })
             }
@@ -195,11 +196,6 @@ class YTSearchParser {
         }
 
         if (!utils.isIterable(contents)) return endpoints;
-        
-        var addResult = obj => {
-            if (!musicResults[obj.type]) musicResults[obj.type] = [];
-            musicResults[obj.type].push(obj);
-        };
 
         contents.forEach(musicObj => {
             try {
@@ -207,7 +203,7 @@ class YTSearchParser {
                 var musicResult = this.extractRendererInfo(renderer);
                 if (musicResult) {
                     musicResult.type = forcedType;
-                    addResult(musicResult);
+                    this.addResult(musicResult, musicResults);
                 }
             } catch(err) {
                 console.log(err)

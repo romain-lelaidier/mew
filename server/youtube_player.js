@@ -139,9 +139,15 @@ class YTPlayer {
                         if (!matchNFuncName) return reject("Could not extract n cipher function name");
                         var nFuncName = matchNFuncName[2];
 
+                        console.log("player parsing", this.pid, sigFuncName, nFuncName)
+                        
                         var [ Y, Yobj ] = this.extractSigFunctionCodeFromName(sigFuncName);
                         this.extractNFunctionCodeFromName(nFuncName, Y, Yobj);
-    
+                        
+                        console.log(Y, JSON.stringify(Yobj));
+                        console.log(this.sfc)
+                        // console.log(this.nfc)
+
                         this.extracted = true;
 
                         pdb.savePlayer(this);

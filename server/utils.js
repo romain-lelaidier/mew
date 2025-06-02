@@ -23,16 +23,40 @@ function replaceUrlParam(url, paramName, paramValue) {
 }
 
 function extractBracketsCode(beginIndex, jsCode) {
-    // beginIndex-1 -> {
     let index = beginIndex;
     let depth = 1;
+    let stringIn = null;
+    let escape = false;
+
     while (depth > 0 && index < jsCode.length) {
-        if (jsCode[index] == '{') depth++;
-        if (jsCode[index] == '}') depth--;
+        const char = jsCode[index];
+
+        if (stringIn === null) {
+            if (char === '{') {
+                depth++;
+            } else if (char === '}') {
+                depth--;
+            } else if (char === '"' || char === "'") {
+                stringIn = char;
+            } else if (char === '/') {
+                // Check if the '/' is likely a regex or a division
+                const prevChar = jsCode[index - 1];
+                if (prevChar === '(' || prevChar === '=' || prevChar === ':' || prevChar === ',' || /\s/.test(prevChar)) {
+                    stringIn = '/'; // Treat as regex
+                }
+            }
+        } else {
+            if (char === stringIn && !escape) {
+                stringIn = null;
+            }
+            escape = (char === '\\') && !escape;
+        }
+
         index++;
     }
-    var endIndex = index - 1;
-    return jsCode.substring(beginIndex, endIndex)
+
+    const endIndex = index - 1;
+    return jsCode.substring(beginIndex, endIndex);
 }
 
 function isIterable(obj) {
@@ -43,15 +67,22 @@ function isIterable(obj) {
   return typeof obj[Symbol.iterator] === 'function';
 }
 
-async function downloadFile(fileUrl, outputLocationPath, headers = {}) {
-    const writer = fs.createWriteStream(outputLocationPath);
-    const response = await axios({
+async function downloadFile(fileUrl, outputLocationPath, headers = {}, onProgress = () => {}) {
+    var writer = fs.createWriteStream(outputLocationPath);
+    var response = await axios({
         method: 'get',
         url: fileUrl,
         responseType: 'stream',
         headers
     });
+    var totalLength = parseInt(response.headers['content-length']);
+    var downloadedLength = 0;
+
     return await new Promise((resolve, reject) => {
+        response.data.on('data', chunk => {
+            downloadedLength += chunk.length
+            onProgress(downloadedLength / totalLength);
+        })
         response.data.pipe(writer);
         let error = null;
         writer.on('error', err => {

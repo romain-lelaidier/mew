@@ -1,0 +1,23 @@
+body {
+    background: #0F02;
+    padding: 0 10em;
+    font-family: 'Calibri';
+}
+
+.holder {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.holder > a, .holder > div {
+    width: 120px;
+    text-decoration: none;
+    margin: 5px;
+}
+.holder img {
+    width: 120px;
+    border-radius: 4px;
+}
+.ARTIST img {
+    border-radius: 50%;
+}

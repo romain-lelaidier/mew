@@ -10,7 +10,7 @@ class DownloadsDB {
                 album VARCHAR(128),
                 artist VARCHAR(128),
                 duration INT,
-                thumbnail VARCHAR(256),
+                smallThumb VARCHAR(256),
                 progress INT,
                 time DATETIME,
                 PRIMARY KEY (id)
@@ -19,8 +19,8 @@ class DownloadsDB {
 
     addDownload(info) {
         return this.connection.query(
-            `INSERT INTO downloads (id, title, album, artist, duration, thumbnail, progress, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ info.id, info.title, info.album, info.artist, info.duration, info.thumbnail, -1, new Date() ]
+            `INSERT INTO downloads (id, title, album, artist, duration, smallThumb, progress, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [ info.id, info.title, info.album, info.artist, info.duration, info.smallThumb, -1, new Date() ]
         )
     }
 
@@ -45,6 +45,16 @@ class DownloadsDB {
             } catch(err) {
                 reject(err)
             }
+        })
+    }
+
+    loadAll() {
+        return new Promise((resolve, reject) => {
+            this.connection.query(
+                `SELECT * FROM downloads`
+            ).then(res => {
+                resolve(res[0])
+            }).catch(reject)
         })
     }
 }

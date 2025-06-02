@@ -563,12 +563,10 @@ class YTMClient {
         })
     }
 
-    DC(info, onProgress) {
+    DC(info, onProgress = () => {}) {
         // Downloads audio stream and thumbnail from the extractedInfo.
         // Converts it to mp3 and adds metadata.
         // The returned Promise object resolves on a string : the path to the mp3 file.
-
-        onProgress ||= () => {};
 
         return new Promise((resolve, reject) => {
             var fmt = this.chooseFormat(info.formats);
@@ -579,10 +577,12 @@ class YTMClient {
             var thumbnailPath = `./thumbs/${info.id}.png`;
 
             Promise.all([
-                utils.downloadFile(fmt.url, streamPath, { "Range": "bytes=0-" }),
+                utils.downloadFile(fmt.url, streamPath, { "Range": "bytes=0-" }, progress => {
+                    onProgress(Math.floor(progress*1000))
+                }),
                 utils.downloadFile(thb.url, thumbnailPath),
             ]).then(() => {
-                onProgress(0);
+                onProgress(1000);
 
                 var ffmpegArgs = [
                     '-y',
@@ -618,7 +618,7 @@ class YTMClient {
                         if (progressMatch) {
                             var time = parseTime(progressMatch[1])
                             var progress = time / totalTime;
-                            onProgress(Math.floor(progress*1000));
+                            onProgress(1000+Math.floor(progress*1000));
                             // console.log(progress)
                         }
                     }
@@ -627,7 +627,7 @@ class YTMClient {
                 ffmpegProcess.on('close', (code) => {
                     if (code == 0) {
                         fs.unlinkSync(streamPath);
-                        onProgress(1000);
+                        onProgress(2000);
                         resolve(outPath);
                     }
                     else reject("ffmpeg exited with code " + code);
@@ -669,15 +669,18 @@ class YTMClient {
                 .then(info => {
                     // info = JSON.parse(info.toString());
                     var { video, next } = info;
-                    video.thumbnail = this.chooseThumbnail(video.thumbnails).url;
-                    video.progress = -1;
+
+                    // choose the smallest thumbnail for database
+                    video.smallThumb = video.thumbnails.sort((fmt1, fmt2) => fmt1.width - fmt2.width)[0].url;
+                    video.progress = 0;
+
                     this.ddb.addDownload(video)
                     .then(() => {
                         resolve(info);
                         this.DC(video, progress => {
                             this.ddb.updateProgress(video.id, progress)
                             .catch(console.error)
-                        });
+                        }).catch(console.error);
                     }).catch(reject);
                 }).catch(reject);
             }).catch(reject);
