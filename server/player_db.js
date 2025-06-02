@@ -1,23 +1,17 @@
-const mysql = require('mysql2/promise');
-
 class PlayerDB {
-    constructor(dbConfig) {
-        this.dbConfig = dbConfig
+    constructor(connection) {
+        this.connection = connection;
     }
     
     init() {
-        return new Promise(async (resolve, reject) => {
-            this.connection = await mysql.createConnection(this.dbConfig);
-            await this.connection.query(`CREATE TABLE IF NOT EXISTS players (
-                pid VARCHAR(8) NOT NULL,
-                plg VARCHAR(5) NOT NULL,
-                sts INT NOT NULL,
-                sfc VARCHAR(2048) NOT NULL,
-                nfc VARCHAR(8192) NOT NULL,
-                PRIMARY KEY (pid, plg)
-            )`);
-            resolve();
-        })
+        return this.connection.query(`CREATE TABLE IF NOT EXISTS players (
+            pid VARCHAR(8) NOT NULL,
+            plg VARCHAR(5) NOT NULL,
+            sts INT NOT NULL,
+            sfc VARCHAR(2048) NOT NULL,
+            nfc VARCHAR(8192) NOT NULL,
+            PRIMARY KEY (pid, plg)
+        )`);
     }
 
     savePlayer(player) {

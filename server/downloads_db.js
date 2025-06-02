@@ -1,14 +1,10 @@
-const mysql = require('mysql2/promise');
-
 class DownloadsDB {
-    constructor(dbConfig) {
-        this.dbConfig = dbConfig
+    constructor(connection) {
+        this.connection = connection
     }
     
     init() {
-        return new Promise(async (resolve, reject) => {
-            this.connection = await mysql.createConnection(this.dbConfig);
-            await this.connection.query(`CREATE TABLE IF NOT EXISTS downloads (
+        return this.connection.query(`CREATE TABLE IF NOT EXISTS downloads (
                 id VARCHAR(11) NOT NULL,
                 title VARCHAR(128),
                 album VARCHAR(128),
@@ -18,9 +14,7 @@ class DownloadsDB {
                 progress INT,
                 time DATETIME,
                 PRIMARY KEY (id)
-            )`);
-            resolve();
-        })
+        )`);
     }
 
     addDownload(info) {

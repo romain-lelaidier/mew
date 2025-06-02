@@ -1,6 +1,7 @@
 const axios = require("axios")
 const fs = require('fs')
 const cp = require('child_process');
+const mysql = require('mysql2/promise');
 
 const PlayerDB = require('./player_db');
 const DownloadsDB = require('./downloads_db');
@@ -61,8 +62,7 @@ class YTMClient {
             }
         }
 
-        this.pdb = new PlayerDB(dbConfig);
-        this.ddb = new DownloadsDB(dbConfig);
+        this.dbConfig = dbConfig;
         this.parser = new YTSearchParser();
 
         this.headers = {
@@ -77,6 +77,10 @@ class YTMClient {
 
     async init() {
         // Initializes the database and creates the necessary folders.
+
+        this.mysqlConnection = await mysql.createConnection(this.dbConfig);
+        this.pdb = new PlayerDB(this.mysqlConnection);
+        this.ddb = new DownloadsDB(this.mysqlConnection);
 
         this.pdb.init();
         this.ddb.init();
