@@ -78,7 +78,10 @@ class YTPlayer {
         var match = this.js.match(`${regescape(nFuncName)}=function\\((\\w+)\\)`);
         if (!match) throw `N Function ${nFuncName} not found in player code`
         var B = match[1];
-        var coreCode =utils.extractBracketsCode(match.index + match[0].length + 1, this.js);
+        var coreBegin = this.js.substring(match.index + match[0].length + 1);
+        var returnMatch = coreBegin.match(/return \w[\w\[[0-9]+\]\]\(\w\[[0-9]+\]\)\};/);
+        if (!returnMatch) throw `N Function ${nFuncName} not found in player code (could not match return)`;
+        var coreCode = coreBegin.substring(0, returnMatch.index + returnMatch[0].length - 2);
 
         var undefinedIdx = Yobj.includes('undefined') ? Yobj.indexOf('undefined') : '[0-9]+';
 
