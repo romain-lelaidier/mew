@@ -40,7 +40,7 @@ class YTPlayer {
         var match = this.js.match(`${regescape(sigFuncName)}=function\\((\\w+)\\)`);
         if (!match) throw `Error while extracting player: function ${sigFuncName} not found in JS player code.`
         var B = match[1];
-        var coreCode =utils.extractBracketsCode(match.index + match[0].length + 1, this.js);
+        var coreCode = utils.extractBracketsCode(match.index + match[0].length + 1, this.js);
         var rawInstructions = coreCode.split(';')
 
         var matchY = rawInstructions[0].match(`${regescape(B)}=${regescape(B)}\\[([a-zA-Z]+)\\[([0-9]+)\\]\\]\\(\\1\\[([0-9]+)\\]\\)`)
@@ -48,18 +48,20 @@ class YTPlayer {
         var Y = matchY[1];
         var Yobj;
         for (const matchYReg of [
-            `var ${regescape(Y)}='(.+)'\\.split`,
-            `var ${regescape(Y)}="(.+)"\\.split`
+            `var ${regescape(Y)}='(.+)'\\.split\((.{3})\)`,
+            `var ${regescape(Y)}="(.+)"\\.split\((.{3})\)`
         ]) {
             var matchYobj = this.js.match(matchYReg);
-            if (matchYobj) Yobj = matchYobj[1].split(';');
+            if (matchYobj) {
+                Yobj = matchYobj[1].split(matchYobj[2][2]);
+            }
         }
         if (!Yobj) throw "Error while extracting player: could not find Y code";
 
-        var matchH = rawInstructions[1].match(`([a-zA-Z]+)\\[${regescape(Y)}\\[([0-9]+)\\]\\]\\(${regescape(B)},([0-9])+\\)`)
+        var matchH = rawInstructions[1].match(`^(.+)\\[${regescape(Y)}\\[([0-9]+)\\]\\]\\(${regescape(B)},([0-9])+\\)$`)
         if (!matchH) throw "Error while extracting player: H not matched in function code";
         var H = matchH[1];
-        var Hcode =utils.extractBracketsCode(this.js.indexOf(`var ${H}=`) + 6 + H.length, this.js).replaceAll('\n', '')
+        var Hcode = utils.extractBracketsCode(this.js.indexOf(`var ${H}=`) + 6 + H.length, this.js).replaceAll('\n', '')
 
         var matchYrep;
         while (matchYrep = Hcode.match(`${regescape(Y)}\\[([0-9]+)\\]`)) {

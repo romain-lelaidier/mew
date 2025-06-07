@@ -1,46 +1,53 @@
 const utils = require('./utils')
 
 class YTSearchParser {
-    parseRuns(runs, musicResult) {
-        if (!utils.isIterable(runs)) return;
-
-        runs.forEach(run => {
-            if ("navigationEndpoint" in run && "browseEndpoint" in run.navigationEndpoint) {
+    parseRun(run, musicResult) {
+        if ("navigationEndpoint" in run) {
+            if ("browseEndpoint" in run.navigationEndpoint) {
                 var ytType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType;
                 var type = {
                     "MUSIC_PAGE_TYPE_ARTIST": "artist",
                     "MUSIC_PAGE_TYPE_ALBUM": "album"
-                }[ytType];
+                } [ ytType ];
                 if (type) {
                     musicResult[type] = run.text;
                 }
+            } else if ("watchEndpoint" in run.navigationEndpoint) {
+                // AlbumSongResult
+                musicResult.title = run.text;
+                musicResult.id = run.navigationEndpoint.watchEndpoint.videoId;
             }
+        }
 
-            if (Object.keys(run).length == 1) {
-                var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
-                if (yearMatch) musicResult.year = parseInt(yearMatch[0]);
+        if (Object.keys(run).length == 1) {
+            var yearMatch = run.text.match(/^(1|2)[0-9]{3}$/);
+            if (yearMatch) musicResult.year = parseInt(yearMatch[0]);
 
-                var durationMatch = run.text.match(/(\d{1,2}):(\d{1,2})/);
-                if (durationMatch) musicResult.duration = parseInt(durationMatch[1]) * 60 + parseInt(durationMatch[2]);
+            var durationMatch = run.text.match(/(\d{1,2}):(\d{1,2})/);
+            if (durationMatch) musicResult.duration = parseInt(durationMatch[1]) * 60 + parseInt(durationMatch[2]);
 
-                if (run.text.includes("vues") || run.text.includes("lectures")) {
-                    var viewsMatch = run.text.match(/(\d+|\d+,\d+)( (k|M))?/);
-                    const multiplier = {
-                        undefined: 1,
-                        k: 1000,
-                        M: 1000000
-                    }
-                    musicResult.views = parseFloat(viewsMatch[1]) * multiplier[viewsMatch[3]]
+            if (run.text.includes("vues") || run.text.includes("lectures")) {
+                var viewsMatch = run.text.match(/(\d+,\d+|\d+)( (k|M))?/);
+                const multiplier = {
+                    undefined: 1,
+                    k: 1e3,
+                    M: 1e6
                 }
+                musicResult.viewCount = parseFloat(viewsMatch[1].replaceAll(',', '.')) * multiplier[viewsMatch[3]]
             }
-        })
+        }
     }
 
-    extractPid(renderer, musicResult) {
+    parseRuns(runs, musicResult) {
+        if (!utils.isIterable(runs)) return;
+        runs.forEach(run => this.parseRun(run, musicResult))
+    }
+
+    extractQueueId(renderer, musicResult) {
         // parses playlist id and adds it to musicResult
         for (const item of renderer.menu.menuRenderer.items) {
             try {
-                musicResult.pid = item.menuNavigationItemRenderer.navigationEndpoint.watchEndpoint.playlistId;
+                musicResult.queueId = item.menuNavigationItemRenderer.navigationEndpoint.watchEndpoint.playlistId;
                 return;
             } catch(err) {
                 continue
@@ -79,9 +86,10 @@ class YTSearchParser {
             var extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
             var musicResult = { 
                 type, id,
-                thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
                 title: extractText(0, 0)
             };
+            
+            if ('thumbnail' in renderer) musicResult.thumbnails = renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
             
             for (let i = 1; i < renderer.flexColumns.length; i++) {
                 if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
@@ -89,14 +97,15 @@ class YTSearchParser {
                 }
             }
 
-            this.extractPid(renderer, musicResult)
+            this.extractQueueId(renderer, musicResult)
 
             return musicResult;
         }
     }
 
-    extractTopRendererInfo(renderer) {
+    extractTopRendererInfo(renderer, forcedType) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
+        if (forcedType) type = forcedType;
         if (type) {
             var musicResult = { 
                 type, id,
@@ -105,7 +114,7 @@ class YTSearchParser {
             };
 
             this.parseRuns(renderer.subtitle.runs, musicResult);
-            this.extractPid(renderer, musicResult)
+            this.extractQueueId(renderer, musicResult)
 
             return musicResult;
         }
@@ -122,16 +131,15 @@ class YTSearchParser {
             
             this.parseRuns(renderer.longBylineText.runs, musicResult)
             this.parseRuns(renderer.lengthText.runs, musicResult)
-            this.extractPid(renderer, musicResult)
+            this.extractQueueId(renderer, musicResult)
 
             return musicResult;
         }
     }
 
     addResult(obj, musicResults) {
-        if (!musicResults[obj.type]) musicResults[obj.type] = [];
-        if (musicResults[obj.type].filter(mr => mr.id == obj.id).length > 0) return;
-        musicResults[obj.type].push(obj);
+        if (musicResults.filter(mr => mr.id == obj.id).length > 0) return;
+        musicResults.push(obj);
     }
 
     extractSearchResults(data, musicResults) {
@@ -148,6 +156,8 @@ class YTSearchParser {
             console.log(err);
             return endpoints;
         }
+
+        require('fs').writeFileSync("testing/search_contents.json", JSON.stringify(contents));
 
         if (!utils.isIterable(contents)) return endpoints;
 
@@ -211,6 +221,57 @@ class YTSearchParser {
         });
 
         return endpoints;
+    }
+
+    parseAlbumSongResult(renderer) {
+        var result = {};
+        // result.title = renderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.runs[0].text;
+        for (var flexColumn of renderer.flexColumns) {
+            this.parseRuns(flexColumn.musicResponsiveListItemFlexColumnRenderer.text.runs, result);
+        }
+        for (var fixedColumn of renderer.fixedColumns) {
+            this.parseRuns(fixedColumn.musicResponsiveListItemFixedColumnRenderer.text.runs, result);
+        }
+        return result;
+    }
+
+    extractAlbum(data) {
+        var album = {
+            songs: []
+        };
+
+        var albumRenderer, contents;
+
+        try {
+            albumRenderer = data.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer;
+            contents = data.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.contents[0].musicShelfRenderer.contents;
+        } catch(err) {
+            console.error(err);
+            return album;
+        }
+
+        // parsing album info
+        album.title = albumRenderer.title.runs[0].text;
+        album.thumbnails = albumRenderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
+
+        this.parseRuns(albumRenderer.subtitle.runs, album);
+        this.parseRuns(albumRenderer.straplineTextOne.runs, album);
+
+        if (!utils.isIterable(contents)) return album;
+
+        contents.forEach(musicObj => {
+            try {
+                var renderer = musicObj.musicResponsiveListItemRenderer;
+                var musicResult = this.parseAlbumSongResult(renderer);
+                if (musicResult) {
+                    album.songs.push(musicResult)
+                }
+            } catch(err) {
+                console.log(err)
+            }
+        });
+
+        return album
     }
 }
 

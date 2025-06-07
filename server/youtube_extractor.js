@@ -200,7 +200,7 @@ class YTMClient {
             ).then(res => {
                 if (res.status != 200) return reject("Could not download search results: status code is " + res.status);
 
-                var musicResults = {};
+                var musicResults = [];
                 var endpoints = this.parser.extractSearchResults(res.data, musicResults);
 
                 // intersect endpoint types and additional list.
@@ -356,16 +356,16 @@ class YTMClient {
         })
     }
 
-    downloadNextData(videoId, playlistId) {
+    downloadNextData(videoId, queueId) {
         return new Promise((resolve, reject) => {
-            if (!playlistId) return resolve([]);
+            if (!queueId) return resolve([]);
 
             axios.post(
                 "https://music.youtube.com/youtubei/v1/next?prettyPrint=false",
                 {
                     "enablePersistentPlaylistPanel": true,
                     "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
-                    "playlistId": playlistId,
+                    "playlistId": queueId,
                     "params": "wAEB8gECeAHqBAtUTVlydkVNWnJfVQ%3D%3D",
                     "isAudioOnly": true,
                     "responsiveSignals": {
@@ -519,6 +519,35 @@ class YTMClient {
         return sorted[0];
     }
 
+    getAlbum(info) {
+        return new Promise((resolve, reject) => {
+            axios.get(
+                'https://music.youtube.com/browse/' + info.id,
+                {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
+                    }
+                }
+            )
+            // fs.promises.readFile('testing/browse.html')
+            .then(res => {
+                if (res.status != 200) return reject('Could not download album : status code ' + res.status);
+                res = res.data;
+                // fs.writeFileSync("testing/browse.html", res.data);
+
+                var ytJSCodeMatch = res.match(/try \{(.+);ytcfg\.set/);
+                if (!ytJSCodeMatch) return reject('Could not find initial data in album html');
+
+                var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
+                var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
+
+                var album = this.parser.extractAlbum(data);
+
+                resolve(album);
+            })
+        })
+    }
+
     EU(info) {
         // Extracts and unlocks video data from id.
         // The returned Promise resolves on an object containig two fields :
@@ -531,7 +560,7 @@ class YTMClient {
             Promise.all([
                 this.getPlayer(info.id),
                 this.getYtcfg(),
-                this.downloadNextData(info.id, info.pid),
+                this.downloadNextData(info.id, info.queueId),
             ]).then(res => {
                 var [ player, ytcfg, next ] = res;
                 this.downloadVideoData(info.id, player, ytcfg)
@@ -689,3 +718,10 @@ class YTMClient {
 }
 
 module.exports = YTMClient;
+
+// var c = new YTMClient();
+// c.getAlbum({ id: "MPREb_z9khROXWkDD" })
+// .then(res => {
+//     console.log(res)
+//     // fs.writeFileSync('testing/albumdata.json', JSON.stringify(res))
+// }).catch(console.error)
