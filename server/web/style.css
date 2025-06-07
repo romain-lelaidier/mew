@@ -78,8 +78,10 @@ a {
 .holder {
     display: flex;
     gap: 0.5rem;
-    margin: 1rem 0;
     flex-direction: column;
+}
+.holder:not(.queueBlock) {
+    margin: 1rem 0;
 }
 .holder h3 {
     margin: 0;
@@ -134,7 +136,6 @@ a {
     padding: 2rem 0;
     height: calc(100vh - 4rem);
     overflow: scroll;
-    margin: 0;
 }
 }
 @media (max-aspect-ratio: 1) {
