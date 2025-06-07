@@ -1,23 +1,156 @@
-body {
-    background: #0F02;
-    padding: 0 10em;
-    font-family: 'Calibri';
-}
+@import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap');
 
+body {
+    background: #E29578;
+    padding: 0 5rem;
+    font-family: 'Calibri';
+    font-size: 1rem;
+    color: black;
+    font-family: 'Cabin', sans-serif;
+}
+.center {
+    position: absolute;
+    top: 50vh;
+    transform: translateY(-50%);
+    padding-bottom: 1rem;
+}
+h1 {
+    margin: 0;
+    font-size: 3rem;
+}
+h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #000c;
+}
+form {
+    display: block;
+    margin: 0.5rem 0;
+}
+input[type=text] {
+    padding: 0.5rem;
+    background: #fff6;
+    border: none;
+    outline: none;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    min-width: 26rem;
+}
+input[type=submit] {
+    padding: 0.5rem 1rem;
+    background: black;
+    color: #fdd;
+    border: none;
+    outline: none;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+a {
+    color: black;
+    text-decoration: underline;
+}
+.holder a {
+    text-decoration: none;
+}
 .holder {
     display: flex;
-    flex-wrap: wrap;
-    width: 100%;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    flex-direction: column;
 }
-.holder > a, .holder > div {
-    width: 120px;
-    text-decoration: none;
-    margin: 5px;
+.holder h3 {
+    margin: 0;
+    font-size: 1.6rem;
+}
+.holder > div {
+    width: fit-content
+}
+.holder .song, .holder .video {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
 }
 .holder img {
-    width: 120px;
     border-radius: 4px;
 }
-.ARTIST img {
+.holder .song img, .holder .video img {
+    height: 60px;
+}
+.holder .slider {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.holder .slider div {
+    display: block;
+    width: 120px;
+    text-align: center;
+}
+.artist img {
     border-radius: 50%;
+}
+@media (min-aspect-ratio: 1) {
+.player {
+    position: absolute;
+    top: 50vh;
+    left: 0;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: calc(10rem + 40vw);
+}
+.queueBlock {
+    position: absolute;
+    right: 10vw;
+    top: 0;
+    width: calc(30vw);
+    padding: 2rem 0;
+    height: calc(100vh - 4rem);
+    overflow: scroll;
+}
+}
+@media (max-aspect-ratio: 1) {
+.player {
+    position: absolute;
+    top: 2rem;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100vw;
+}
+.queueBlock {
+    position: absolute;
+    top: calc(min(min(90vw, 90vh), 20rem) + 12rem);
+    left: 50vw;
+    transform: translateX(-50%);
+    width: calc(100vw - 4rem);
+}
+}
+.player img {
+    height: min(min(90vw, 90vh), 20rem);
+    width: min(min(90vw, 90vh), 20rem);
+    border-radius: 10px;
+    aspect-ratio: 1;
+}
+.player audio {
+    min-width: 40vw;
+    border-radius: 4px;
+}
+.playerInfo span {
+    display: block;
+    text-align: center;
+}
+.playerInfo .title {
+    font-size: 1.5rem;
+}
+.playerInfo .album {
+    font-style: italic;
 }

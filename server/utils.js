@@ -98,10 +98,44 @@ async function downloadFile(fileUrl, outputLocationPath, headers = {}, onProgres
     });
 }
 
+
+function durationToString(d) {
+    const pad = (i, w, s) => (s.length < i) ? pad(i, w, w + s) : s;
+    return Math.floor(d / 60) + ':' + pad(2, '0', (d%60).toString())
+}
+
+function viewsToString(v) {
+    if (Math.floor(v/1e9) > 0) return `${Math.floor(v/1e8)/10}Mds`
+    if (Math.floor(v/1e6) > 0) return `${Math.floor(v/1e5)/10}M`
+    if (Math.floor(v/1e3) > 0) return `${Math.floor(v/1e2)/10}k`
+    return v.toString()
+}
+
+function chooseFormat(formats) {
+    var audioSorted = formats
+        .filter(fmt => fmt.mimeType.includes("audio/webm"))
+        .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
+    if (audioSorted) return audioSorted[0];
+    return formats[1];
+}
+
+function chooseThumbnail(thumbnails, width=Infinity) {
+    var sorted = thumbnails
+        .sort((thb1, thb2) => thb2.width - thb1.width);
+    var filtered = sorted.filter(thb => thb.width <= width)
+    if (filtered.length > 0) return filtered[0]
+    return sorted[0];
+}
+
 module.exports = {
     parseQueryString,
     replaceUrlParam,
     extractBracketsCode,
     isIterable,
-    downloadFile
+    downloadFile,
+    durationToString,
+    viewsToString,
+    chooseFormat,
+    chooseThumbnail,
+    mds: ' · '
 }

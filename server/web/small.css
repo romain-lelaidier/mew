@@ -1,0 +1,33 @@
+body {
+    background: #f1faee;
+    padding: 0 5rem;
+    font-family: 'Calibri';
+    font-size: 1rem;
+}
+form {
+    display: block;
+    margin: 0.5rem 0;
+}
+h1 {
+    margin: 0;
+}
+.holder {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.holder > div {
+    width: 120px;
+    margin: 0.5rem;
+    margin-left: 0;
+}
+a {
+    text-decoration: none;
+}
+.holder img {
+    width: 120px;
+    border-radius: 4px;
+}
+.ARTIST img {
+    border-radius: 50%;
+}

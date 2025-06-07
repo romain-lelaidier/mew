@@ -107,7 +107,7 @@ class YTSearchParser {
         let [type, id] = this.extractRendererTypeAndId(renderer);
         if (forcedType) type = forcedType;
         if (type) {
-            var musicResult = { 
+            var musicResult = {
                 type, id,
                 thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
                 title: renderer.title.runs[0].text
@@ -259,11 +259,13 @@ class YTSearchParser {
 
         if (!utils.isIterable(contents)) return album;
 
+        var index = 1;
         contents.forEach(musicObj => {
             try {
                 var renderer = musicObj.musicResponsiveListItemRenderer;
                 var musicResult = this.parseAlbumSongResult(renderer);
                 if (musicResult) {
+                    if (!musicResult.index) musicResult.index = index++;
                     album.songs.push(musicResult)
                 }
             } catch(err) {

@@ -6,6 +6,7 @@ const PORT = process.env.NODE_PORT || 8000;
 
 const utils = require('./utils')
 const YTMClient = require('./youtube_extractor')
+const HTMLBuilder = require('./web/builder')
 
 const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
     ? fs.readFileSync("./mysql_config.json")
@@ -16,8 +17,10 @@ const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
 // const certificate = fs.readFileSync('server.cert', 'utf8');
 // const credentials = { key: privateKey, cert: certificate };
 
-const c = new YTMClient(MYSQL_CONFIG)
-c.init()
+const c = new YTMClient(MYSQL_CONFIG);
+c.init();
+
+const b = new HTMLBuilder();
 
 app.use(express.json())
 
@@ -103,7 +106,8 @@ app.get('/api/extract_video/:id', (req, res) => {
         obj[key] = value;
     }
 
-    c.EU(obj).then(info => {
+    c.EU(obj)
+    .then(info => {
         jres(res, info)
     }).catch(err => {
         console.log(err)
@@ -137,94 +141,17 @@ app.get('/api/mp3/:id', (req, res) => {
 
 // web server
 
-var loaded = {};
-for (const webFile of [ 'index', 'search', 'waiter', 'downloads' ]) {
-    loaded[webFile] = fs.readFileSync(`./web/${webFile}.html`).toString();
-}
-loaded.css = fs.readFileSync('./web/style.css').toString()
-
-function durationToString(d) {
-    const pad = (i, w, s) => (s.length < i) ? pad(i, w, w + s) : s;
-    return Math.floor(d / 60) + ':' + pad(2, '0', (d%60).toString())
-}
-
-function viewsToString(v) {
-    if (Math.floor(v/1e9) > 0) return `${Math.floor(v/1e8)/10}Mds`
-    if (Math.floor(v/1e6) > 0) return `${Math.floor(v/1e5)/10}M`
-    if (Math.floor(v/1e3) > 0) return `${Math.floor(v/1e2)/10}k`
-    return v.toString()
-}
-
-function searchResultsToHTML(params, info) {
-    var res = `Search results for <span style="text-decoration:underline">${params.query}</span> :<br><br><form action="/web/search"><input type="text" name="query" value="${params.query}"><input type="submit" value="Search"></form>`;
-    var songsHTML = "";
-    var maxCount = params.small ? 4 : 20;
-    for (var r of info.SONG.slice(0, maxCount)) {
-        var params = [];
-        for (var type of [ 'title', 'artist', 'album' ]) {
-            if (r[type]) params.push(type + '=' + encodeURIComponent(r[type]));
-        }
-        var songDetails = [];
-        if ('duration' in r) songDetails.push(durationToString(r.duration));
-        if ('views' in r) songDetails.push(viewsToString(r.views));
-        songsHTML += `<a class="SONG" href="/web/eudc/${r.id}?${params.join('&')}"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${songDetails.length > 0 ? '<br><span>' + songDetails.join(' · ') + '</span>' : ''}</a><br><br>`
-    }
-    var artistsHTML = "";
-    for (var r of info.ARTIST.slice(0, maxCount)) {
-        artistsHTML += `<a class="ARTIST" href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
-    }
-    var albumsHTML = "";
-    for (var r of info.ALBUM.slice(0, maxCount)) {
-        albumsHTML += `<a class="SONG" href="/"><img src="${c.chooseThumbnail(r.thumbnails).url}"/><br><span><b>${r.title}</b></span></a><br><br>`
-    }
-    res += `<h2>Songs</h2><div class="holder">${songsHTML}</div>`
-    res += `<h2>Artists</h2><div class="holder">${artistsHTML}</div>`
-    res += `<h2>Albums</h2><div class="holder">${albumsHTML}</div>`
-    return res;
-}
-
-function generateDownloadDiv(params, video) {
-    const formatProgress = p => {
-        if (p < 0 || p > 2000) return p.toString();
-        if (p == 0) return "Info extracted";
-        if (p < 1000) return `Downloading (${p/10}%)`;
-        if (p < 2000) return `Converting (${(p-1000)/10}%)`;
-        return "Success"
-    }
-    var state = video.progress == 2000
-        ? `<a href="/web/download/${video.id}">Download MP3</a>`
-        : `<span>State: ${formatProgress(video.progress)}</span>`;
-    return `<div>
-        <img width="120" src="${video.smallThumb}"/><br>
-        <span><b>${video.title}</b></span><br>
-        <span>${video.artist}</span><br>
-        <span><i>${video.album}</i></span><br>
-        ${state}<br>
-    </div>`
-}
-
-function waiterHTML(params, info) {
-    var { video } = info;
-    return generateDownloadDiv(params, video)
-}
-
-function downloadsHTML(params, videos) {
-    return videos.map(v => generateDownloadDiv(params, v)).join('')
-    // return generateDownloadDiv(params, video)
-}
-
-function changeHTMLLinks(baseURL, html) {
-    if (!baseURL) return html;
-    return html.replaceAll('/web/', baseURL + '/web/').replaceAll('/api/', baseURL + '/api/')
-}
-
 app.get('/web/', (req, res) => {
     var params = utils.parseQueryString(req._parsedUrl.query);
-    bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.index))
+    bres(res, 200, 'text/html', b.index(params));
 })
 
 app.get('/web/css', (req, res) => {
-    bres(res, 200, 'text/css', loaded.css);
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    var path = params.small ? "./web/small.css" : "./web/style.css";
+    res.status(200);
+    res.setHeader('Content-type', 'text/css');
+    fs.createReadStream(path).pipe(res, end=true);
 })
 
 app.get('/web/search', (req, res) => {
@@ -235,8 +162,30 @@ app.get('/web/search', (req, res) => {
     c.search(params.query, ['SONG']).then(info => {
     // fs.promises.readFile("debug/search.json").then(info => {
     //     info = JSON.parse(info)
-        fs.writeFileSync("debug/search.json", JSON.stringify(info))
-        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.search.replace('XXX', searchResultsToHTML(params, info))))
+        // fs.writeFileSync("debug/search.json", JSON.stringify(info))
+        bres(res, 200, 'text/html', b.searchResults(params, info));
+    }).catch(err => {
+        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+    })
+})
+
+app.get('/web/play/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.EU(obj)
+    // fs.promises.readFile("debug/eu.json")
+    .then(info => {
+        // info = JSON.parse(info.toString())
+        // fs.writeFileSync("debug/eu.json", JSON.stringify(info));
+        bres(res, 200, 'text/html', b.player(params, info));
     }).catch(err => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     })
@@ -255,7 +204,7 @@ app.get('/web/eudc/:id', (req, res) => {
 
     c.initiateEUDC(obj)
     .then(info => {
-        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.waiter.replace('XXX', waiterHTML(params, info))))
+        bres(res, 200, 'text/html', b.waiter(params, info));
     }).catch(err => {
         bres(res, 500, 'text/plain', 'server error : ' + err.toString())
     });
@@ -291,10 +240,32 @@ app.get('/web/down', (req, res) => {
 
     c.ddb.loadAll()
     .then(results => {
-        bres(res, 200, 'text/html', changeHTMLLinks(params.baseURL, loaded.downloads.replace('XXX', downloadsHTML(params, results))))
+        bres(res, 200, 'text/html', b.downloads(params, results));
     }).catch(err => {
         bres(500, 'text/plain', 500, err.toString())
     })
+})
+
+app.get('/web/album/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{17}$/), 'Invalid album id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.getAlbum(obj)
+    // fs.promises.readFile('debug/album.json')
+    .then(album => {
+        fs.writeFileSync('debug/album.json', JSON.stringify(album))
+        // album = JSON.parse(album)
+        bres(res, 200, 'text/html', b.album(params, album));
+    }).catch(err => {
+        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+    });
 })
 
 const httpServer = http.createServer(app);

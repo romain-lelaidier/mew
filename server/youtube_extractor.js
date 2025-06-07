@@ -505,20 +505,6 @@ class YTMClient {
         })
     }
 
-    chooseFormat(formats) {
-        var audioSorted = formats
-            .filter(fmt => fmt.mimeType.includes("audio/webm"))
-            .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
-        if (audioSorted) return audioSorted[0];
-        return formats[1];
-    }
-
-    chooseThumbnail(thumbnails) {
-        var sorted = thumbnails
-            .sort((fmt1, fmt2) => fmt2.width - fmt1.width)
-        return sorted[0];
-    }
-
     getAlbum(info) {
         return new Promise((resolve, reject) => {
             axios.get(
@@ -569,7 +555,6 @@ class YTMClient {
                     extractedInfo.formats.forEach(fmt => {
                         fmt.url = player.decryptFormatStreamUrl(fmt)
                     })
-
                     // cleaning formats
                     extractedInfo.formats = extractedInfo.formats.map(fmt => {
                         return {
@@ -578,6 +563,9 @@ class YTMClient {
                             mimeType: fmt.mimeType
                         }
                     });
+                    
+                    extractedInfo.stream = utils.chooseFormat(extractedInfo.formats);
+                    delete extractedInfo.formats;
 
                     for (var [ key, value ] of Object.entries(info)) {
                         if (!info.key) extractedInfo[key] = value
@@ -598,8 +586,8 @@ class YTMClient {
         // The returned Promise object resolves on a string : the path to the mp3 file.
 
         return new Promise((resolve, reject) => {
-            var fmt = this.chooseFormat(info.formats);
-            var thb = this.chooseThumbnail(info.thumbnails);
+            var fmt = utils.chooseFormat(info.formats);
+            var thb = utils.chooseThumbnail(info.thumbnails);
 
             var streamPath = `./streams/${info.id}.webm`;
             var outPath = `./streams/${info.id}.mp3`;
