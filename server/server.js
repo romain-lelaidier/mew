@@ -242,7 +242,7 @@ app.get('/web/down', (req, res) => {
     .then(results => {
         bres(res, 200, 'text/html', b.downloads(params, results));
     }).catch(err => {
-        bres(500, 'text/plain', 500, err.toString())
+        bres(res, 500, 'text/plain', err.toString())
     })
 })
 

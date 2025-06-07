@@ -9,11 +9,11 @@ class HTMLBuilder {
 
     generatePage(params, title, html) {
         var styleRef = params.small ? "/web/css?small=true" : "/web/css"
-        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body></html>`;
+        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body></html>`;
         return this.changeHTMLLinks(params, realHTML);
     }
 
-    generateDownloadDiv(params, video) {
+    generateDownloadDiv(params, r) {
         const formatProgress = p => {
             if (p < 0 || p > 2000) return p.toString();
             if (p == 0) return "Info extracted";
@@ -21,9 +21,13 @@ class HTMLBuilder {
             if (p < 2000) return `Converting (${(p-1000)/10}%)`;
             return "Success"
         }
-        var state = video.progress == 2000
-            ? `<a href="/web/download/${video.id}">Download MP3</a>`
-            : `<span>State: ${formatProgress(video.progress)}</span>`;
+        var state = r.progress == 2000
+            ? `<a href="/web/download/${r.id}">Download MP3</a>`
+            : `<span>State: ${formatProgress(r.progress)}</span>`;
+
+        return params.small 
+            ? `<div class="song"><img src="${r.smallThumb}"/><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span><br>${state}</div>`
+            : `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
         return `<div>
             <img width="120" src="${video.smallThumb}"/><br>
             <div class="info"><span><b>${video.title}</b></span><br>
