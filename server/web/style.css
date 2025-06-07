@@ -134,6 +134,7 @@ a {
     padding: 2rem 0;
     height: calc(100vh - 4rem);
     overflow: scroll;
+    margin: 0;
 }
 }
 @media (max-aspect-ratio: 1) {
