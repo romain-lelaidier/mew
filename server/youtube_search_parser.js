@@ -120,7 +120,7 @@ class YTSearchParser {
         }
     }
 
-    extractNextRendererInfo(renderer) {
+    extractQueueRendererInfo(renderer) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
         if (type) {
             var musicResult = { 

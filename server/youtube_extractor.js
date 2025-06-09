@@ -356,7 +356,7 @@ class YTMClient {
         })
     }
 
-    downloadNextData(videoId, queueId) {
+    downloadQueue(videoId, queueId) {
         return new Promise((resolve, reject) => {
             if (!queueId) return resolve([]);
 
@@ -438,14 +438,14 @@ class YTMClient {
                 { headers: this.headers }
             )
             .then(res => {
-                if (res.status != 200) return reject("Could not download next data: status code is " + res.status);
+                if (res.status != 200) return reject("Could not download queue : status code is " + res.status);
 
                 try {
                     var results = [];
                     for (const entry of res.data.contents.singleColumnMusicWatchNextResultsRenderer.tabbedRenderer.watchNextTabbedResultsRenderer.tabs[0].tabRenderer.content.musicQueueRenderer.content.playlistPanelRenderer.contents) {
                         try {
                             var renderer = entry.playlistPanelVideoRenderer;
-                            results.push(this.parser.extractNextRendererInfo(renderer));
+                            results.push(this.parser.extractQueueRendererInfo(renderer));
                         } catch(err) {
                             console.log(err)
                             continue;
@@ -538,7 +538,7 @@ class YTMClient {
         // Extracts and unlocks video data from id.
         // The returned Promise resolves on an object containig two fields :
         //  - video : an object with the extracted data and formats
-        //  - next : a list
+        //  - queue : a list
 
         return new Promise((resolve, reject) => {
             if (!("id" in info)) return reject("No id provided");
@@ -546,9 +546,9 @@ class YTMClient {
             Promise.all([
                 this.getPlayer(info.id),
                 this.getYtcfg(),
-                this.downloadNextData(info.id, info.queueId),
+                this.downloadQueue(info.id, info.queueId),
             ]).then(res => {
-                var [ player, ytcfg, next ] = res;
+                var [ player, ytcfg, queue ] = res;
                 this.downloadVideoData(info.id, player, ytcfg)
                 .then(extractedInfo => {
                     // unlocking stream urls
@@ -573,7 +573,7 @@ class YTMClient {
 
                     resolve({
                         video: extractedInfo,
-                        next
+                        queue
                     })
                 }).catch(reject);
             }).catch(reject);
@@ -585,8 +585,15 @@ class YTMClient {
         // Converts it to mp3 and adds metadata.
         // The returned Promise object resolves on a string : the path to the mp3 file.
 
+        console.log(JSON.stringify(info))
+
         return new Promise((resolve, reject) => {
-            var fmt = utils.chooseFormat(info.formats);
+            var fmt;
+            try {
+                fmt = utils.chooseFormat(info.formats);
+            } catch(err) {
+                fmt = info.stream;
+            }
             var thb = utils.chooseThumbnail(info.thumbnails);
 
             var streamPath = `./streams/${info.id}.webm`;
@@ -685,7 +692,7 @@ class YTMClient {
                 // fs.promises.readFile("testing/info.json")
                 .then(info => {
                     // info = JSON.parse(info.toString());
-                    var { video, next } = info;
+                    var { video, queue } = info;
 
                     // choose the smallest thumbnail for database
                     video.smallThumb = video.thumbnails.sort((fmt1, fmt2) => fmt1.width - fmt2.width)[0].url;

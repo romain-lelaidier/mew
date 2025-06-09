@@ -9,7 +9,7 @@ class HTMLBuilder {
 
     generatePage(params, title, html) {
         var styleRef = params.small ? "/web/css?small=true" : "/web/css"
-        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body></html>`;
+        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script>`}</html>`;
         return this.changeHTMLLinks(params, realHTML);
     }
 
@@ -28,18 +28,15 @@ class HTMLBuilder {
         return params.small 
             ? `<div class="song"><img src="${r.smallThumb}"/><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span><br>${state}</div>`
             : `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
-        return `<div>
-            <img width="120" src="${video.smallThumb}"/><br>
-            <div class="info"><span><b>${video.title}</b></span><br>
-            <span>${video.artist}</span><br>
-            <span><i>${video.album}</i></span><br>
-            ${state}</div>
-        </div>`
+    }
+
+    searchBar(params, defaultText='') {
+        var deviceInput = params.small ? `<input type="hidden" name="small" value="true">` : ''
+        return `<form action="/web/search">${deviceInput}<input type="text" name="query" value="${defaultText}" placeholder="Search"><input type="submit" value="Search"></form>`
     }
 
     index(params) {
-        var deviceInput = params.small ? `<input type="hidden" name="small" value="true">` : ''
-        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h2>Search YouTube Music</h2><form action="/web/search">${deviceInput}<input type="text" name="query"><input type="submit" value="Search"></form><a href="/web/down">Downloaded Songs</a></div>`)
+        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h3>A minimalist and ad-free YouTube Music player</h3>${this.searchBar(params)}<a href="/web/down">Downloaded Songs</a></div>`)
     }
 
     songDetailsSpan(r) {
@@ -85,14 +82,13 @@ class HTMLBuilder {
 
         if (r.type == "ARTIST") {
             return `<div class="${classStr}">
-                        <img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
-                        <div class="info"><a><span><b>${r.title}</b></span></a></div></div>`
+                <img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
+                <div class="info"><a><span><b>${r.title}</b></span></a></div></div>`
         }
     }
 
     searchResults(params, results) {
-        var html = `Search results for <span style="text-decoration:underline">${params.query}</span> :
-            <form action="/web/search"><input type="text" name="query" value="${params.query}"><input type="submit" value="Search"></form>`;
+        var html = `Search results for <span style="text-decoration:underline">${params.query}</span>:${this.searchBar(params)}`;
         var rbhtml;
         if (params.small) {
             rbhtml = results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
@@ -165,12 +161,21 @@ class HTMLBuilder {
     }
 
     player(params, info) {
-        var { video, next } = info;
-        var infoBlock = `<img id="pimg"/><div class="playerInfo"><span class="title" id="ptitle">${video.title}</span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
-        var audioPlayer = `<audio controls autoplay id="paudio"><source src="" type="audio/webm" id="paudiosource">Your browser does not support the audio element.</audio>`;
-        var queueBlock = `<div class="queueBlock holder"><h3>Playing next</h3>${next.slice(0,16).map(v => this.generateQueueResultDiv(params, v)).join('')}</div>`
+        var { video, queue } = info;
+        var infoBlock = `<img id="pimg"/><div class="playerInfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
+        var audioPlayer = `<div id="playerControls">
+        <div id="audioPlayer">
+            <audio controls autoplay id="paudio" src="" type="audio/webm"></audio>
+            <div id="progressContainer"><div id="pbackgroundbar"></div><div id="pbufferedbar"></div><div id="pprogressbar"></div><input type="range" id="pslider" value="0"></div>
+        </div>
+        <div id="pbuttons">
+            <div id="pskipleft" class="pbutton"><div id="pskiplefticon" class="fa-solid fa-backward-step fa-xl"></div></div>
+            <div id="pplaypause" class="pbutton"><div id="pplaypauseicon"></div></div>
+            <div id="pskip" class="pbutton"><div id="pskipicon" class="fa-solid fa-forward-step fa-xl"></div></div></div>
+        </div>`;
+        var queueBlock = `<div class="queueBlock">${this.searchBar(params)}<h3>Playing next</h3><div id="pqueue" class="holder"></div></div>`
         var js = fs.readFileSync("./web/player.js").toString();
-        var script = `<script>${js.replace("XVIDEOX", JSON.stringify(video)).replace("XNEXTX", JSON.stringify(next))}</script>`
+        var script = `<script>${js.replace("XVIDEOX", JSON.stringify(video)).replace("XQUEUEX", JSON.stringify(queue))}</script>`
         return this.generatePage(params, 'Mew - Player', `<div class="player">${infoBlock}${audioPlayer}</div>${queueBlock}${script}`);
     }
 }

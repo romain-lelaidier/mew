@@ -45,6 +45,12 @@ function jres(res, obj) {
     bres(res, 200, 'application/json', JSON.stringify(obj))
 }
 
+function eres(res, err) {
+    // resolves response with 500 status code and prints error
+    console.error(err);
+    bres(res, 500, 'text/plain', 'Oups, server error : ' + err.toString())
+}
+
 app.get('/', (req, res) => {
     bres(res, 200, 'text/plain', 'Welcome to the Mew server ! rdn : ' + Math.random())
 });
@@ -57,7 +63,7 @@ app.get('/api/search_suggestions/:query', (req, res) => {
         jres(res, results)
     }).catch(err => {
         console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -69,7 +75,7 @@ app.get('/api/search/:query', (req, res) => {
         jres(res, results)
     }).catch(err => {
         console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -91,7 +97,7 @@ app.post('/api/extract_video/', (req, res) => {
         fs.writeFileSync(file, JSON.stringify(info));
         jres(res, info)
     }).catch(err => {
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -111,7 +117,7 @@ app.get('/api/extract_video/:id', (req, res) => {
         jres(res, info)
     }).catch(err => {
         console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -135,7 +141,7 @@ app.get('/api/mp3/:id', (req, res) => {
         fs.createReadStream(path).pipe(res, end=true);
     }).catch(err => {
         console.log(err)
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -165,7 +171,7 @@ app.get('/web/search', (req, res) => {
         // fs.writeFileSync("debug/search.json", JSON.stringify(info))
         bres(res, 200, 'text/html', b.searchResults(params, info));
     }).catch(err => {
-        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+        eres(res, err)
     })
 })
 
@@ -187,7 +193,7 @@ app.get('/web/play/:id', (req, res) => {
         // fs.writeFileSync("debug/eu.json", JSON.stringify(info));
         bres(res, 200, 'text/html', b.player(params, info));
     }).catch(err => {
-        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+        eres(res, err)
     })
 })
 
@@ -206,7 +212,7 @@ app.get('/web/eudc/:id', (req, res) => {
     .then(info => {
         bres(res, 200, 'text/html', b.waiter(params, info));
     }).catch(err => {
-        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+        eres(res, err);
     });
 })
 
@@ -231,7 +237,7 @@ app.get('/web/download/:id', (req, res) => {
             bres(res, 404, 'text/plain', 'Video not downloaded')
         }
     }).catch(err => {
-        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+        eres(res, err)
     })
 });
 
@@ -242,7 +248,7 @@ app.get('/web/down', (req, res) => {
     .then(results => {
         bres(res, 200, 'text/html', b.downloads(params, results));
     }).catch(err => {
-        bres(res, 500, 'text/plain', err.toString())
+        eres(res, err)
     })
 })
 
@@ -264,7 +270,7 @@ app.get('/web/album/:id', (req, res) => {
         // album = JSON.parse(album)
         bres(res, 200, 'text/html', b.album(params, album));
     }).catch(err => {
-        bres(res, 500, 'text/plain', 'server error : ' + err.toString())
+        eres(res, err)
     });
 })
 

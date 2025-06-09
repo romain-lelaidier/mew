@@ -1,6 +1,7 @@
 ### MusicResult
 - `<String> type` : peut prendre les valeurs `SONG`, `ALBUM`, `ARTIST`
-- `<Object> result` : objet contenant les données. Sa structure dépend du type spécifié.
+- `<Object> info` : objet contenant les données. Sa structure dépend du type spécifié.
+- `<Bool> top` : vaut `true` si le résultat est le résultat mis en avant par YouTube.
 
 ### Thumbnail
 - `<String> url` : URL de l'image
