@@ -139,13 +139,13 @@ a {
 .player {
     position: absolute;
     top: 50vh;
-    left: 0;
+    left: 1rem;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1rem;
-    width: calc(10rem + 40vw);
+    width: calc(60vw - 2rem);
 }
 .queueBlock {
     position: absolute;
