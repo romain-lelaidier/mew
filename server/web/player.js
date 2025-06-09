@@ -27,6 +27,13 @@ function viewsToString(v) {
     return v.toString()
 }
 
+function getDominantColor(colorthief, img) {
+    var c = colorthief.getColor(img);
+    var nc = Math.sqrt(c.map(x => x*x).reduce((a,b)=>a+b,0))
+    c = c.map(x => x*310/nc);
+    return `rgb(${c.join(',')})`
+}
+
 class Player {
     constructor(video, queue, album) {
         this.pimg = document.getElementById("pimg");
@@ -41,6 +48,9 @@ class Player {
         this.pskip = document.getElementById("pskip")
         this.pskipleft = document.getElementById("pskipleft")
         this.pslider = document.getElementById("pslider");
+
+        this.colorthief = new ColorThief();
+        this.root = document.querySelector(':root');
 
         this.serverURL = document.URL.substring(0, document.URL.indexOf('/web/play'))
 
@@ -89,6 +99,11 @@ class Player {
                 })
             }
         }
+
+        this.pimg.addEventListener("load", () => {
+            var c = getDominantColor(this.colorthief, this.pimg);
+            this.root.style.setProperty('--c-background', c);
+        })
 
         // event handling
         this.paudio.addEventListener("ended", () => {

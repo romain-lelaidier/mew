@@ -528,6 +528,7 @@ class YTMClient {
                 var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
 
                 var album = this.parser.extractAlbum(data);
+                album.id = info.id;
 
                 resolve(album);
             })

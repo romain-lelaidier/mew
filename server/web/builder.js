@@ -9,7 +9,7 @@ class HTMLBuilder {
 
     generatePage(params, title, html) {
         var styleRef = params.small ? "/web/css?small=true" : "/web/css"
-        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script>`}</html>`;
+        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>`}</html>`;
         return this.changeHTMLLinks(params, realHTML);
     }
 
@@ -163,7 +163,7 @@ class HTMLBuilder {
     }
 
     player(params, info, album=false) {
-        var infoBlock = `<img id="pimg"/><div class="playerInfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
+        var infoBlock = `<img crossorigin="anonymous" src="" id="pimg"/><div class="playerInfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
             <audio controls autoplay id="paudio" src="" type="audio/webm"></audio>

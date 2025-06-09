@@ -1,11 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap');
 
+:root {
+    --c-background: #a8cc8f;
+    --c-front: black;
+    --c-searchbar: #fff4;
+    --c-hover: #0001;
+    --c-player: #0004;
+}
 body {
-    background: #E29578;
+    transition: .2s ease;
+    background: var(--c-background);
     margin: 1rem 5rem;
     font-family: 'Calibri';
     font-size: 1rem;
-    color: black;
+    color: var(--c-front);
     font-family: 'Cabin', sans-serif;
     width: 100%;
 }
@@ -19,7 +27,7 @@ form {
 }
 input[type=text] {
     padding: 0.5rem;
-    background: #fff6;
+    background: var(--c-searchbar);
     border: none;
     outline: none;
     border-radius: 4px;
@@ -30,8 +38,8 @@ input[type=text] {
 }
 input[type=submit] {
     padding: 0.5rem 1rem;
-    background: black;
-    color: #fdd;
+    background: var(--c-front);
+    color: var(--c-background);
     border: none;
     outline: none;
     border-radius: 4px;
@@ -55,7 +63,7 @@ input[type=text] {
     padding: 0.5rem;
     width: 100%;
     min-width: unset;
-    background: #fff6;
+    background: var(--c-searchbar);
     border: none;
     outline: none;
     border-radius: 4px;
@@ -69,13 +77,14 @@ h1 {
 h2 {
     margin: 0;
     font-size: 1.5rem;
-    color: #000c;
+    color: var(--c-front);
+    opacity: 0.8;
 }
 h3 {
     margin: 0;
 }
 a {
-    color: black;
+    color: var(--c-front);
     text-decoration: underline;
 }
 .holder a {
@@ -179,7 +188,7 @@ a {
     transform: translateX(-0.2rem);
 }
 #pqueue .song:hover {
-    background: #0001;
+    background: var(--c-hover);
 }
 #pqueue .song .albumIndex {
     margin: 0 0.5rem;
@@ -237,8 +246,8 @@ a {
     transition: .2s ease-out;
 }
 #pplaypause {
-    background: black;
-    color: #E29578;
+    background: var(--c-front);
+    color: var(--c-background);
 }
 #pplaypause:hover {
     transform: scale(105%);
@@ -250,7 +259,7 @@ a {
     opacity: 0.2;
 }
 #pskip:not(.pbuttonoff):hover, #pskipleft:not(.pbuttonoff):hover {
-    background: #0001;
+    background: var(--c-hover);
 }
 #progressContainer {
     position: relative;
@@ -262,7 +271,7 @@ a {
     height: 0.2rem;
     z-index: -1;
     position: absolute;
-    background: #0004;
+    background: var(--c-player);
     position: absolute;
     top: 0.4rem;
     border-radius: 0.1rem;
@@ -271,7 +280,7 @@ a {
     height: 0.2rem;
     z-index: -1;
     position: absolute;
-    background: #0004;
+    background: var(--c-player);
     position: absolute;
     top: 0.4rem;
     border-radius: 0.1rem;
@@ -281,7 +290,7 @@ a {
     height: 0.2rem;
     z-index: -1;
     position: absolute;
-    background: black;
+    background: var(--c-front);
     position: absolute;
     top: 0.4rem;
     border-radius: 0.1rem;
@@ -303,7 +312,7 @@ a {
    /*custom styles*/
    outline: none;
    border: none;
-   background-color: black;
+   background-color: var(--c-front);
    border-radius: 50%;
    height: 0.5rem;
    width: 0.5rem;
