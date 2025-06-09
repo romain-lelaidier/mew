@@ -28,7 +28,7 @@ function viewsToString(v) {
 }
 
 class Player {
-    constructor(video, queue) {
+    constructor(video, queue, album) {
         this.pimg = document.getElementById("pimg");
         this.ptitle = document.getElementById("ptitle");
         this.partist = document.getElementById("partist");
@@ -43,11 +43,19 @@ class Player {
         this.pslider = document.getElementById("pslider");
 
         this.serverURL = document.URL.substring(0, document.URL.indexOf('/web/play'))
-        this.queueId = video.queueId;
 
-        this.queue = queue || [ video ];
-        if (video.id != this.queue[0].id) {
-            this.queue.unshift(video);
+        if (album) {
+            this.queueId = album.id
+            this.queue = album.songs
+            this.isalbum = true;
+            this.album = album;
+        } else {
+            this.queueId = video.queueId;
+            this.queue = queue || [ video ];
+            if (video.id != this.queue[0].id) {
+                this.queue.unshift(video);
+            }
+            this.isalbum = false;
         }
         for (let i = 0; i < this.queue.length; i++) {
             this.queue[i].queueIndex = i;
@@ -176,7 +184,6 @@ class Player {
         // Mettre à jour la zone grisée pour l'état de chargement
         audio.addEventListener('progress', function() {
             const buffered = audio.buffered;
-            console.log("progress", buffered);
             if (buffered.length > 0) {
                 const bufferedEnd = buffered.end(buffered.length - 1);
                 const bufferedValue = (bufferedEnd / audio.duration) * 100;
@@ -194,19 +201,17 @@ class Player {
 
     buildQueue() {
         this.queue.forEach(r => {
-            var downloadParams = [];
-            for (var type of [ 'title', 'artist', 'album', 'queueId' ]) {
-                if (r[type]) downloadParams.push(type + '=' + encodeURIComponent(r[type]));
-            }
-            
             r.a = document.createElement("a");
             r.a.setAttribute("class", "song");
-            // r.a.setAttribute("href", `/web/play/${r.id}?${downloadParams.join('&')}`);
             r.a.addEventListener("click", () => {
-                this.i = r.queueIndex;
-                this.actions.playFromClick();
+                if (this.i != r.queueIndex) {
+                    this.i = r.queueIndex;
+                    this.actions.playFromClick();
+                }
             })
-            r.a.innerHTML = `<img src="${chooseThumbnailUrl(r.thumbnails, 120)}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
+            r.a.innerHTML = this.isalbum
+                ? `<div class="albumIndex">${r.index}.</div><div class="info"><span><b>${r.title}</b></span>${songDetailsSpan(r)}</div>`
+                : `<img src="${chooseThumbnailUrl(r.thumbnails, 120)}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
             this.pqueue.appendChild(r.a);
         })
     }
@@ -218,10 +223,15 @@ class Player {
         } else {
             this.pskipleft.classList.remove("pbuttonoff")
         }
-        this.pimg.src = chooseThumbnailUrl(current.thumbnails);
+        this.queue.forEach(r => {
+            if (r.queueIndex == this.i) r.a.classList.add("active");
+            else r.a.classList.remove("active");
+        })
+        this.pimg.src = chooseThumbnailUrl(this.isalbum ? this.album.thumbnails : current.thumbnails);
         this.ptitle.innerText = current.title;
-        this.partist.innerText = current.artist;
-        this.palbum.innerText = current.album;
+        this.partist.innerText = this.isalbum ? this.album.artist : current.artist;
+        this.palbum.innerText = this.isalbum ? this.album.title : current.album;
+        this.pslider.value = 0;
     }
     
     playerLoadAndStart() {
@@ -234,7 +244,9 @@ class Player {
 window.onload = () => {
     var video = XVIDEOX;
     var queue = XQUEUEX;
+    var album = XALBUMX;
     console.log(video);
     console.log(queue);
-    new Player(video, queue);
+    console.log(album);
+    new Player(video, queue, album);
 };

@@ -146,7 +146,9 @@ class HTMLBuilder {
     }
 
     album(params, album) {
-        return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`)
+        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
+
+        return this.player(params, album, true);
     }
 
     generateQueueResultDiv(params, r) {
@@ -160,8 +162,7 @@ class HTMLBuilder {
             : `<a class="song" href="/web/play/${r.id}?${downloadParams.join('&')}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
     }
 
-    player(params, info) {
-        var { video, queue } = info;
+    player(params, info, album=false) {
         var infoBlock = `<img id="pimg"/><div class="playerInfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
@@ -173,9 +174,14 @@ class HTMLBuilder {
             <div id="pplaypause" class="pbutton"><div id="pplaypauseicon"></div></div>
             <div id="pskip" class="pbutton"><div id="pskipicon" class="fa-solid fa-forward-step fa-xl"></div></div></div>
         </div>`;
-        var queueBlock = `<div class="queueBlock">${this.searchBar(params)}<h3>Playing next</h3><div id="pqueue" class="holder"></div></div>`
+        var queueBlock = `<div class="queueBlock">${this.searchBar(params)}<h3>Queue</h3><div id="pqueue" class="holder"></div></div>`
         var js = fs.readFileSync("./web/player.js").toString();
-        var script = `<script>${js.replace("XVIDEOX", JSON.stringify(video)).replace("XQUEUEX", JSON.stringify(queue))}</script>`
+
+        var rinfo = album
+            ? { album: info, video: null, queue: null }
+            : { album: null, video: info.video, queue: info.queue };
+
+        var script = `<script>${js.replace("XVIDEOX", JSON.stringify(rinfo.video)).replace("XQUEUEX", JSON.stringify(rinfo.queue)).replace("XALBUMX", JSON.stringify(rinfo.album))}</script>`
         return this.generatePage(params, 'Mew - Player', `<div class="player">${infoBlock}${audioPlayer}</div>${queueBlock}${script}`);
     }
 }

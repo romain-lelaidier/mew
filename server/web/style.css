@@ -15,6 +15,7 @@ form {
     gap: 0.5rem;
     width: 100%;
     flex-direction: row;
+    max-width: 40rem;
 }
 input[type=text] {
     padding: 0.5rem;
@@ -100,7 +101,6 @@ a {
     flex-direction: row;
     align-items: center;
     gap: 0.4rem;
-    transition: .2s ease-in-out;
     z-index: 0;
     border-radius: 4px;
 }
@@ -169,6 +169,28 @@ a {
     transform: translateX(-50%);
     width: calc(100vw - 4rem);
 }
+}
+#pqueue {
+    padding: 0 0.2rem;
+    margin: 0.5rem 0;
+}
+#pqueue .song {
+    padding: 0.2rem;
+    transform: translateX(-0.2rem);
+}
+#pqueue .song:hover {
+    background: #0001;
+}
+#pqueue .song .albumIndex {
+    margin: 0 0.5rem;
+    font-size: 1.2rem;
+    opacity: 0.7;
+}
+#pqueue .active::before {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    content: "\f001";
+    margin: 0.5rem;
 }
 .player img {
     height: min(min(90vw, 90vh), 20rem);
