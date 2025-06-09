@@ -52,7 +52,11 @@ function eres(res, err) {
 }
 
 app.get('/', (req, res) => {
-    bres(res, 200, 'text/plain', 'Welcome to the Mew server ! rdn : ' + Math.random())
+    res.writeHead(302, {
+        'Location': '/web'
+    });
+    res.end();
+    // bres(res, 200, 'text/plain', 'Welcome to the Mew server ! rdn : ' + Math.random())
 });
 
 app.get('/api/search_suggestions/:query', (req, res) => {
