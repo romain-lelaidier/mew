@@ -156,6 +156,12 @@ app.get('/web/', (req, res) => {
     bres(res, 200, 'text/html', b.index(params));
 })
 
+app.get('/web/favicon.ico', (req, res) => {
+    res.status(200);
+    res.setHeader('Content-type', 'image/x-icon');
+    fs.createReadStream('./icon/favicon.ico').pipe(res, end=true);
+})
+
 app.get('/web/css', (req, res) => {
     var params = utils.parseQueryString(req._parsedUrl.query);
     var path = params.small ? "./web/small.css" : "./web/style.css";

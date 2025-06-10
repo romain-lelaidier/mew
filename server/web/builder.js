@@ -9,7 +9,7 @@ class HTMLBuilder {
 
     generatePage(params, title, html) {
         var styleRef = params.small ? "/web/css?small=true" : "/web/css"
-        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>`}</html>`;
+        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/><link rel="icon" type="image/x-icon" href="/web/favicon.ico"></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>`}</html>`;
         return this.changeHTMLLinks(params, realHTML);
     }
 
