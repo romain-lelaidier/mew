@@ -4,7 +4,7 @@ function chooseThumbnailUrl(thumbnails, width=Infinity) {
     var sorted = thumbnails.sort((thb1, thb2) => thb2.width - thb1.width);
     var filtered = sorted.filter(thb => thb.width <= width)
     if (filtered.length > 0) return filtered[0].url;
-    return sorted[0].url;
+    return sorted[sorted.length-1].url;
 }
 
 function songDetailsSpan(r) {
@@ -17,7 +17,7 @@ function songDetailsSpan(r) {
 
 function durationToString(d) {
     const pad = (i, w, s) => (s.length < i) ? pad(i, w, w + s) : s;
-    return Math.floor(d / 60) + ':' + pad(2, '0', (d%60).toString())
+    return Math.floor(d / 60) + ':' + pad(2, '0', Math.round(d%60).toString())
 }
 
 function viewsToString(v) {
@@ -34,6 +34,57 @@ function getDominantColor(colorthief, img) {
     return `rgb(${c.join(',')})`
 }
 
+class Thumbnail {
+    constructor(img, thumbnails, width=Infinity) {
+        this.img = img;
+        this.thumbnails = thumbnails;
+        this.width = width;
+
+        this.img.classList.add("thumbnail")
+
+        this.load();
+    }
+
+    choose(retry = false) {
+        var w = retry ? 120 : this.width;
+        var sorted = this.thumbnails.sort((thb1, thb2) => thb2.width - thb1.width);
+        var filtered = sorted.filter(thb => thb.width <= w)
+        if (filtered.length > 0) return filtered[0];
+        return sorted[sorted.length - 1];
+    }
+
+    loadFromThumbnail(thb) {
+        this.img.src = thb.url;
+        this.img.height = thb.height;
+        this.img.width = thb.width;
+    }
+
+    load() {
+        var thb = this.choose();
+        this.loadFromThumbnail(thb);
+
+        var retried = false;
+        this.img.addEventListener("error", () => {
+            if (!retried) {
+                console.log("retrying")
+                this.loadFromThumbnail(this.choose(true))
+                retried = true;
+            }
+        })
+    }
+
+    // var thumbnails = this.isalbum ? this.album.thumbnails : current.thumbnails
+    // var imageRetry = true;
+    // this.pimg.src = chooseThumbnailUrl(thumbnails);
+    // this.pimg.addEventListener("error", () => {
+    //     if (imageRetry) {
+    //         this.pimg.src = chooseThumbnailUrl(thumbnails, 0)
+    //         console.log("retrying", chooseThumbnailUrl(thumbnails, 120))
+    //     }
+    //     imageRetry = false;
+    // })
+}
+
 class Player {
     constructor(video, queue, album) {
         this.pimg = document.getElementById("pimg");
@@ -43,11 +94,17 @@ class Player {
         this.paudio = document.getElementById("paudio");
         this.pqueue = document.getElementById("pqueue");
 
-        this.pplaypause = document.getElementById("pplaypause")
-        this.pplaypauseicon = document.getElementById("pplaypauseicon")
-        this.pskip = document.getElementById("pskip")
-        this.pskipleft = document.getElementById("pskipleft")
+        this.pcurrenttime = document.getElementById("pcurrenttime");
+        this.ptotaltime = document.getElementById("ptotaltime");
+
         this.pslider = document.getElementById("pslider");
+        this.pbufferedbar = document.getElementById('pbufferedbar');
+        this.pprogressbar = document.getElementById('pprogressbar');
+
+        this.pplaypause = document.getElementById("pplaypause");
+        this.pplaypauseicon = document.getElementById("pplaypauseicon");
+        this.pskip = document.getElementById("pskip");
+        this.pskipleft = document.getElementById("pskipleft");
 
         this.colorthief = new ColorThief();
         this.root = document.querySelector(':root');
@@ -169,7 +226,11 @@ class Player {
                 xml.onload = () => {
                     var { queue, video } = JSON.parse(xml.responseText);
                     for (var [ key, value ] of Object.entries(video)) {
-                        this.queue[i][key] = value;
+                        if (key == "thumbnails") {
+                            this.queue[i].thumbnails.push(...value);
+                        } else {
+                            this.queue[i][key] = value;
+                        }
                     }
                     if (queue.length > 0) this.queue.push(...queue);
                     resolve();
@@ -182,36 +243,32 @@ class Player {
     }
 
     buildAudioPlayer() {
-        const audio = document.getElementById('paudio');
-        const pbufferedbar = document.getElementById('pbufferedbar');
-        const pprogressbar = document.getElementById('pprogressbar');
-        const pslider = document.getElementById('pslider');
-
         const cssWidth = per => `calc(0.25rem + ${per / 100} * (100% - 0.5rem))`
 
         // Mettre à jour la barre de progression
-        audio.addEventListener('timeupdate', function() {
-            const value = (audio.currentTime / audio.duration) * 100;
-            pprogressbar.style.width = cssWidth(value);
-            pslider.value = value;
-        });
+        this.paudio.addEventListener('timeupdate', function() {
+            const value = (this.paudio.currentTime / this.paudio.duration) * 100;
+            this.pprogressbar.style.width = cssWidth(value);
+            this.pcurrenttime.textContent = durationToString(this.paudio.currentTime);
+            this.pslider.value = value;
+        }.bind(this));
 
         // Mettre à jour la zone grisée pour l'état de chargement
-        audio.addEventListener('progress', function() {
-            const buffered = audio.buffered;
+        this.paudio.addEventListener('progress', function() {
+            const buffered = this.paudio.buffered;
             if (buffered.length > 0) {
                 const bufferedEnd = buffered.end(buffered.length - 1);
-                const bufferedValue = (bufferedEnd / audio.duration) * 100;
-                pbufferedbar.style.width = cssWidth(bufferedValue);
+                const bufferedValue = (bufferedEnd / this.paudio.duration) * 100;
+                this.pbufferedbar.style.width = cssWidth(bufferedValue);
             }
-        });
+        }.bind(this));
 
         // Permettre à l'utilisateur de déplacer la barre de progression
-        pslider.addEventListener('input', function() {
-            const seekTime = (pslider.value / 100) * audio.duration;
-            pprogressbar.style.width = cssWidth(pslider.value);
-            audio.currentTime = seekTime;
-        });
+        this.pslider.addEventListener('input', function() {
+            const seekTime = (pslider.value / 100) * this.paudio.duration;
+            this.pprogressbar.style.width = cssWidth(pslider.value);
+            this.paudio.currentTime = seekTime;
+        }.bind(this));
     }
 
     buildQueue() {
@@ -226,7 +283,11 @@ class Player {
             })
             r.a.innerHTML = this.isalbum
                 ? `<div class="albumIndex">${r.index}.</div><div class="info"><span><b>${r.title}</b></span>${songDetailsSpan(r)}</div>`
-                : `<img src="${chooseThumbnailUrl(r.thumbnails, 120)}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
+                : `<img loading="lazy"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
+            if (!this.isalbum) {
+                var img = r.a.getElementsByTagName("img")[0];
+                new Thumbnail(img, r.thumbnails, 120)
+            }
             this.pqueue.appendChild(r.a);
         })
     }
@@ -242,11 +303,13 @@ class Player {
             if (r.queueIndex == this.i) r.a.classList.add("active");
             else r.a.classList.remove("active");
         })
-        this.pimg.src = chooseThumbnailUrl(this.isalbum ? this.album.thumbnails : current.thumbnails);
+        new Thumbnail(this.pimg, this.isalbum ? this.album.thumbnails : current.thumbnails);
         this.ptitle.innerText = current.title;
         this.partist.innerText = this.isalbum ? this.album.artist : current.artist;
         this.palbum.innerText = this.isalbum ? this.album.title : current.album;
         this.pslider.value = 0;
+        this.pcurrenttime.textContent = durationToString(0);
+        this.ptotaltime.textContent = durationToString(current.duration);
     }
     
     playerLoadAndStart() {

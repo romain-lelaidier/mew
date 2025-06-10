@@ -153,7 +153,7 @@ class YTSearchParser {
         try {
             contents = data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
         } catch(err) {
-            console.log(err);
+            console.error(err);
             return endpoints;
         }
 
@@ -201,7 +201,7 @@ class YTSearchParser {
         try {
             contents = data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[1].musicShelfRenderer.contents;
         } catch(err) {
-            console.log(err);
+            console.error(err);
             return endpoints;
         }
 
@@ -216,7 +216,7 @@ class YTSearchParser {
                     this.addResult(musicResult, musicResults);
                 }
             } catch(err) {
-                console.log(err)
+                console.error(err)
             }
         });
 
@@ -269,7 +269,7 @@ class YTSearchParser {
                     album.songs.push(musicResult)
                 }
             } catch(err) {
-                console.log(err)
+                console.error(err)
             }
         });
 

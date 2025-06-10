@@ -447,13 +447,13 @@ class YTMClient {
                             var renderer = entry.playlistPanelVideoRenderer;
                             results.push(this.parser.extractQueueRendererInfo(renderer));
                         } catch(err) {
-                            console.log(err)
+                            console.error(err)
                             continue;
                         }
                     }
                     resolve(results);
                 } catch(err) {
-                    console.log(err)
+                    console.error(err)
                     resolve([])
                 }
             }).catch(reject)

@@ -171,8 +171,8 @@ app.get('/web/search', (req, res) => {
 
     c.search(params.query, ['SONG']).then(info => {
     // fs.promises.readFile("debug/search.json").then(info => {
-    //     info = JSON.parse(info)
-        // fs.writeFileSync("debug/search.json", JSON.stringify(info))
+        // info = JSON.parse(info)
+        fs.writeFileSync("debug/search.json", JSON.stringify(info))
         bres(res, 200, 'text/html', b.searchResults(params, info));
     }).catch(err => {
         eres(res, err)

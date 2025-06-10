@@ -32,7 +32,7 @@ class HTMLBuilder {
 
     searchBar(params, defaultText='') {
         var deviceInput = params.small ? `<input type="hidden" name="small" value="true">` : ''
-        return `<form action="/web/search">${deviceInput}<input type="text" name="query" value="${defaultText}" placeholder="Search"><input type="submit" value="Search"></form>`
+        return `<form action="/web/search">${deviceInput}<input type="text" name="query" value="${defaultText}" placeholder="Search"><button type="submit"><div class="fa-solid fa-magnifying-glass"></div></button></form>`
     }
 
     index(params) {
@@ -60,7 +60,7 @@ class HTMLBuilder {
 
             return params.small 
                 ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}?${downloadParams.join('&')}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
+                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
         }
 
         if (r.type == "VIDEO") {
@@ -71,7 +71,7 @@ class HTMLBuilder {
 
             return params.small 
                 ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}?${downloadParams.join('&')}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</div></a>`
+                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</div></a>`
         }
 
         if (r.type == "ALBUM") {
@@ -88,7 +88,6 @@ class HTMLBuilder {
     }
 
     searchResults(params, results) {
-        var html = `Search results for <span style="text-decoration:underline">${params.query}</span>:${this.searchBar(params)}`;
         var rbhtml;
         if (params.small) {
             rbhtml = results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
@@ -115,7 +114,7 @@ class HTMLBuilder {
             }
             pushHTML(true);
         }
-        html += `<div class="holder">${rbhtml}</div>`
+        var html = `${this.searchBar(params, params.query)}<div class="holder">${rbhtml}</div>`
         return this.generatePage(params, "Mew - Search", html)
     }
 
@@ -163,10 +162,11 @@ class HTMLBuilder {
     }
 
     player(params, info, album=false) {
-        var infoBlock = `<img crossorigin="anonymous" src="" id="pimg"/><div class="playerInfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
+        var infoBlock = `<div id="pimgcontainer"><img crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
             <audio controls autoplay id="paudio" src="" type="audio/webm"></audio>
+            <div id="ptimes"><span id="pcurrenttime">0:00</span><span id="ptotaltime">3:00</span></div>
             <div id="progressContainer"><div id="pbackgroundbar"></div><div id="pbufferedbar"></div><div id="pprogressbar"></div><input type="range" id="pslider" value="0"></div>
         </div>
         <div id="pbuttons">
@@ -174,7 +174,7 @@ class HTMLBuilder {
             <div id="pplaypause" class="pbutton"><div id="pplaypauseicon"></div></div>
             <div id="pskip" class="pbutton"><div id="pskipicon" class="fa-solid fa-forward-step fa-xl"></div></div></div>
         </div>`;
-        var queueBlock = `<div class="queueBlock">${this.searchBar(params)}<h3>Queue</h3><div id="pqueue" class="holder"></div></div>`
+        var queueBlock = `<div id="queue">${this.searchBar(params)}<h3>Queue</h3><div id="pqueue" class="holder"></div></div>`
         var js = fs.readFileSync("./web/player.js").toString();
 
         var rinfo = album
@@ -182,7 +182,7 @@ class HTMLBuilder {
             : { album: null, video: info.video, queue: info.queue };
 
         var script = `<script>${js.replace("XVIDEOX", JSON.stringify(rinfo.video)).replace("XQUEUEX", JSON.stringify(rinfo.queue)).replace("XALBUMX", JSON.stringify(rinfo.album))}</script>`
-        return this.generatePage(params, 'Mew - Player', `<div class="player">${infoBlock}${audioPlayer}</div>${queueBlock}${script}`);
+        return this.generatePage(params, 'Mew - Player', `<div id="playerbody"><div id="player">${infoBlock}${audioPlayer}</div>${queueBlock}</div>${script}`);
     }
 }
 
