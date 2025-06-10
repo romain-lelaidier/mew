@@ -242,16 +242,20 @@ class Player {
         })
     }
 
+    updateTime() {
+        const cssWidth = per => `calc(0.25rem + ${per / 100} * (100% - 0.5rem))`
+        const value = (this.paudio.currentTime / this.paudio.duration) * 100;
+        this.pprogressbar.style.width = cssWidth(value);
+        this.pcurrenttime.textContent = durationToString(this.paudio.currentTime);
+        this.pslider.value = value;
+    }
+
     buildAudioPlayer() {
         const cssWidth = per => `calc(0.25rem + ${per / 100} * (100% - 0.5rem))`
+        this.updateTime(0)
 
-        // Mettre à jour la barre de progression
-        this.paudio.addEventListener('timeupdate', function() {
-            const value = (this.paudio.currentTime / this.paudio.duration) * 100;
-            this.pprogressbar.style.width = cssWidth(value);
-            this.pcurrenttime.textContent = durationToString(this.paudio.currentTime);
-            this.pslider.value = value;
-        }.bind(this));
+        setInterval(this.updateTime.bind(this), 50);
+        // this.paudio.addEventListener('timeupdate', this.updateTime.bind(this));
 
         // Mettre à jour la zone grisée pour l'état de chargement
         this.paudio.addEventListener('progress', function() {
