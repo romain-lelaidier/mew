@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const fs = require('fs');
+const axios = require('axios');
 const app = express();
 const PORT = process.env.NODE_PORT || 8000;
 
@@ -282,6 +283,22 @@ app.get('/web/album/:id', (req, res) => {
     }).catch(err => {
         eres(res, err)
     });
+})
+
+app.get('/web/img', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    var url = params.url;
+    var valid = ares(res, url, 'No url provided');
+    if (!valid) return;
+
+    axios.get(url, {
+        responseType: 'stream'
+    }).then(axres => {
+        res.status(200);
+        axres.data.pipe(res, end=true);
+    }).catch(err => {
+        eres(res, err)
+    })
 })
 
 const httpServer = http.createServer(app);

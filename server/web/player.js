@@ -35,10 +35,11 @@ function getDominantColor(colorthief, img) {
 }
 
 class Thumbnail {
-    constructor(img, thumbnails, width=Infinity) {
+    constructor(img, thumbnails, crossOrigin=false, width=Infinity) {
         this.img = img;
         this.thumbnails = thumbnails;
         this.width = width;
+        this.crossOrigin = crossOrigin;
 
         this.img.classList.add("thumbnail")
 
@@ -54,7 +55,10 @@ class Thumbnail {
     }
 
     loadFromThumbnail(thb) {
-        this.img.src = thb.url;
+        var url = this.crossOrigin
+            ? `/web/img?url=${encodeURI(thb.url)}`
+            : thb.url;
+        this.img.src = url;
         this.img.height = thb.height;
         this.img.width = thb.width;
     }
@@ -72,17 +76,6 @@ class Thumbnail {
             }
         })
     }
-
-    // var thumbnails = this.isalbum ? this.album.thumbnails : current.thumbnails
-    // var imageRetry = true;
-    // this.pimg.src = chooseThumbnailUrl(thumbnails);
-    // this.pimg.addEventListener("error", () => {
-    //     if (imageRetry) {
-    //         this.pimg.src = chooseThumbnailUrl(thumbnails, 0)
-    //         console.log("retrying", chooseThumbnailUrl(thumbnails, 120))
-    //     }
-    //     imageRetry = false;
-    // })
 }
 
 class Player {
@@ -227,7 +220,9 @@ class Player {
                     var { queue, video } = JSON.parse(xml.responseText);
                     for (var [ key, value ] of Object.entries(video)) {
                         if (key == "thumbnails") {
-                            this.queue[i].thumbnails.push(...value);
+                            if (this.queue[i].thumbnails) {
+                                this.queue[i].thumbnails.push(...value);
+                            }
                         } else {
                             this.queue[i][key] = value;
                         }
@@ -290,7 +285,7 @@ class Player {
                 : `<img loading="lazy"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
             if (!this.isalbum) {
                 var img = r.a.getElementsByTagName("img")[0];
-                new Thumbnail(img, r.thumbnails, 120)
+                new Thumbnail(img, r.thumbnails, false, 120)
             }
             this.pqueue.appendChild(r.a);
         })
@@ -307,7 +302,11 @@ class Player {
             if (r.queueIndex == this.i) r.a.classList.add("active");
             else r.a.classList.remove("active");
         })
-        new Thumbnail(this.pimg, this.isalbum ? this.album.thumbnails : current.thumbnails);
+        new Thumbnail(
+            this.pimg,
+            this.isalbum ? this.album.thumbnails : current.thumbnails,
+            true    // crossOrigin
+        );
         this.ptitle.innerText = current.title;
         this.partist.innerText = this.isalbum ? this.album.artist : current.artist;
         this.palbum.innerText = this.isalbum ? this.album.title : current.album;
