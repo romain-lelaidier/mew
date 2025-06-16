@@ -9,7 +9,7 @@ class HTMLBuilder {
 
     generatePage(params, title, html) {
         var styleRef = params.small ? "/web/css?small=true" : "/web/css"
-        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/><link rel="icon" type="image/x-icon" href="/web/favicon.ico"></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>`}</html>`;
+        var realHTML = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="${styleRef}"/><link rel="icon" type="image/x-icon" href="/web/favicon.ico"></head><body>${html}</body>${params.small ? '' : `<script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script><footer><span><a href="/web">Home</a></span><span><a href="https://github.com/romain-lelaidier/mew" target="_blank">GitHub</a></span><span>MIT License · 2025</span><span><a href="mailto:romain.lelaidier@etu.minesparis.psl.eu">Contact</a></span><span><a href="/web/legal">Legal</a></span></footer>`}</html>`;
         return this.changeHTMLLinks(params, realHTML);
     }
 
@@ -36,7 +36,7 @@ class HTMLBuilder {
     }
 
     index(params) {
-        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h3>A minimalist and ad-free YouTube Music player</h3>${this.searchBar(params)}<a href="/web/down">Downloaded Songs</a></div>`)
+        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h3>A minimalist and ad-free YouTube Music player</h3>${this.searchBar(params)}${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}<span id="restriction">This Website is strictly restricted to its owner and to the contributors of RÉZAL.<br/>Users are aware that their usage of this tool violates YouTube's legal conditions. They accept all responsibilities.</span></div>`)
     }
 
     songDetailsSpan(r) {
@@ -183,6 +183,11 @@ class HTMLBuilder {
 
         var script = `<script>${js.replace("XVIDEOX", JSON.stringify(rinfo.video)).replace("XQUEUEX", JSON.stringify(rinfo.queue)).replace("XALBUMX", JSON.stringify(rinfo.album))}</script>`
         return this.generatePage(params, 'Mew - Player', `<div id="playerbody"><div id="player">${infoBlock}${audioPlayer}</div>${queueBlock}</div>${script}`);
+    }
+
+    legal(params) {
+        var html = fs.readFileSync('./web/legal.html')
+        return this.generatePage(params, 'Mew - Legal', html);
     }
 }
 

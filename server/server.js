@@ -157,6 +157,11 @@ app.get('/web/', (req, res) => {
     bres(res, 200, 'text/html', b.index(params));
 })
 
+app.get('/web/legal', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    bres(res, 200, 'text/html', b.legal(params));
+})
+
 app.get('/web/favicon.ico', (req, res) => {
     res.status(200);
     res.setHeader('Content-type', 'image/x-icon');
@@ -174,6 +179,7 @@ app.get('/web/css', (req, res) => {
 app.get('/web/search', (req, res) => {
     var params = utils.parseQueryString(req._parsedUrl.query);
     var valid = ares(res, "query" in params, 'No query specified')
+        && ares(res, params.query.length >= 3, 'Query length should be at least 3')
     if (!valid) return;
 
     c.search(params.query, ['SONG']).then(info => {
