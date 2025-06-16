@@ -11,61 +11,23 @@ const utils = require('./utils');
 
 class YTMClient {
     constructor(dbConfig) {
-        this.context = {
+        this.dbConfig = dbConfig;
+        this.parser = new YTSearchParser();
+
+        this.baseContext = {
             "client": {
                 "hl": "fr",
                 "gl": "FR",
                 "remoteHost": "88.166.99.84",
-                "deviceMake": "",
-                "deviceModel": "",
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
                 "clientName": "WEB_REMIX",
                 "clientVersion": "1.20250514.03.00",
-                "osName": "Windows",
-                "osVersion": "10.0",
                 "originalUrl": "https://music.youtube.com/?cbrd=1",
-                "platform": "DESKTOP",
-                "clientFormFactor": "UNKNOWN_FORM_FACTOR",
-                "configInfo": {
-                    "appInstallData": "CMiAp8EGEMn3rwUQvZrPHBDiuLAFEPDizhwQ_fP_EhC9tq4FEOibzxwQzN-uBRCXsv8SEParsAUQgc3OHBCHrM4cEObdzhwQi4KAExDtoM8cEOvo_hIQvZmwBRDk5_8SEJybzxwQ39zOHBDT4a8FEIjjrwUQt-r-EhD8ss4cEIiHsAUQ5uPOHBD_ns8cEJr0zhwQ4OD_EhC52c4cEN2WzxwQzInPHBCZjbEFEImwzhwQndCwBRDevM4cEN-4zhwQu9nOHBCwic8cEL2KsAUQmZixBRCU_rAFEMnmsAUQuOTOHBC1jIATEPCdzxwQ8JywBRDXnM8cEOmFgBMQhZjPHCosQ0FNU0d4VVFvTDJ3RE5Ia0JwU0NFdFhTNmd2NTdBUEozQVdncEFRZEJ3PT0%3D",
-                    "coldConfigData": "CMmAp8EGGjJBT2pGb3gzZWtMVE1GM1drOVZLbjZQRVdrdTExS2p5SnRDUVM4ckxUc1NQb3hBeEZ2ZyIyQU9qRm94M2VrTFRNRjNXazlWS242UEVXa3UxMUtqeUp0Q1FTOHJMVHNTUG94QXhGdmc%3D",
-                    "coldHashData": "CMmAp8EGEhM4MzcyMjg4Nzg1MDY2MDg0NzkyGMmAp8EGMjJBT2pGb3gzZWtMVE1GM1drOVZLbjZQRVdrdTExS2p5SnRDUVM4ckxUc1NQb3hBeEZ2ZzoyQU9qRm94M2VrTFRNRjNXazlWS242UEVXa3UxMUtqeUp0Q1FTOHJMVHNTUG94QXhGdmc%3D",
-                    "hotHashData": "CMmAp8EGEhQxMTUyOTY2ODg1NzU2NjE3NDE2MhjJgKfBBjIyQU9qRm94M2VrTFRNRjNXazlWS242UEVXa3UxMUtqeUp0Q1FTOHJMVHNTUG94QXhGdmc6MkFPakZveDNla0xUTUYzV2s5VktuNlBFV2t1MTFLanlKdENRUzhyTFRzU1BveEF4RnZn"
-                },
-                "browserName": "Firefox",
-                "browserVersion": "138.0",
                 "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "deviceExperimentId": "ChxOelV3TlRjME1UWTJPVFUxTWpBNE5qUTVOdz09EMiAp8EGGMiAp8EG",
-                "rolloutToken": "CP_PxIiQ0-z0ehDTjJiS8ayNAxjTjJiS8ayNAw%3D%3D",
-                "screenWidthPoints": 1485,
-                "screenHeightPoints": 731,
-                "screenPixelDensity": 1,
-                "screenDensityFloat": 1.25,
-                "utcOffsetMinutes": 120,
-                "userInterfaceTheme": "USER_INTERFACE_THEME_DARK",
-                "timeZone": "Europe/Paris",
-                "musicAppInfo": {
-                    "pwaInstallabilityStatus": "PWA_INSTALLABILITY_STATUS_UNKNOWN",
-                    "webDisplayMode": "WEB_DISPLAY_MODE_BROWSER",
-                    "storeDigitalGoodsApiSupportStatus": {
-                        "playStoreDigitalGoodsApiSupportStatus": "DIGITAL_GOODS_API_SUPPORT_STATUS_UNSUPPORTED"
-                    }
-                }
-            },
-            "user": {
-                "lockedSafetyMode": false
-            },
-            "request": {
-                "useSsl": true,
-                "internalExperimentFlags": [],
-                "consistencyTokenJars": []
             }
         }
 
-        this.dbConfig = dbConfig;
-        this.parser = new YTSearchParser();
-
-        this.headers = {
+        this.baseHeaders = {
             'X-YouTube-Client-Name': '7',
             'X-YouTube-Client-Version': '7.20250521.15.00',
             'Origin': 'https://www.youtube.com',
@@ -103,27 +65,13 @@ class YTMClient {
             "client": {
                 "hl": "en", 
                 "gl": "FR", 
-                "deviceMake": "", 
-                "deviceModel": "", 
-                "visitorData": "CgtwYWphUEtFSXV0dyjXktjBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBq", 
                 "userAgent": "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)",
                 "clientName": "TVHTML5",
-                "osVersion": "",
                 "originalUrl": "https://www.youtube.com/tv",
-                "theme": "CLASSIC",
-                "platform": "DESKTOP",
-                "clientFormFactor": "UNKNOWN_FORM_FACTOR",
                 "webpSupport": false,
-                "configInfo": {"appInstallData": "CNeS2MEGEJmYsQUQwoO4IhDloM8cEPX-_xIQmY2xBRCUms8cEO2gzxwQuOTOHBDevM4cEJT-sAUQvZmwBRCe0LAFEL6KsAUQ6-j-EhC52c4cEMn3rwUQ9quwBRCmnc8cENqHgBMQ4p7PHBDroM8cEPmDuCIQ4YKAExDPgs8cEPDizhwQvbauBRCcm88cEImwzhwQiOOvBRDM364FEP-ezxwQ_vP_EhDro88cENr3zhwQmvTOHBCThs8cELCJzxwQpIiAExCIh7AFEIuCgBMQ8JywBRCIhLgiELfq_hIQyKXPHBDJ5rAFEPyyzhwQy5rOHBCjps8cEP6czxwQpOrOHBC9nM8cENuizxwQ_orPHBDroc8cEODg_xIQu9nOHBDT4a8FENeczxwQzInPHBCBzc4cEIeszhwQ2aLPHCokQ0FNU0ZSVVctWnEtREpTQ0V0WFM2Z3Y1N0FQSjNBVWRCdz09"},
                 "tvAppInfo": {"appQuality": "TV_APP_QUALITY_FULL_ANIMATION"},
-                "timeZone": "UTC",
                 "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "deviceExperimentId": "ChxOelV3T1RFNU9UWTVPRFEwTVRrMU9UZzNOdz09ENeS2MEGGNeS2MEG",
-                "rolloutToken": "CNfgo63soO-csAEQ3tjNv6jEjQMYmuyTwKjEjQM%3D",
-                "utcOffsetMinutes": 0
-            },
-            "user": {"lockedSafetyMode": false},
-            "request": {"useSsl": true},
+            }
         };
 
         if (ytcfg && ytcfg.clientVersion) {
@@ -140,15 +88,15 @@ class YTMClient {
         //  - musicResults : a list of music results
 
         return new Promise((resolve, reject) => {
-            if (query.length <= 3) {
-                return reject("Error: query length should be at least 4.")
+            if (query.length < 3) {
+                return reject("Error: query length should be at least 3.")
             }
 
             axios.post(
                 "https://music.youtube.com/youtubei/v1/music/get_search_suggestions?prettyPrint=false",
                 {
                     input: query,
-                    context: this.context
+                    context: this.baseContext
                 }
             ).then(res => {
                 if (res.status != 200) return reject("Script error: HTTPS POST status code is " + res.status);
@@ -195,7 +143,7 @@ class YTMClient {
                 "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
                 {
                     query: query,
-                    context: this.context
+                    context: this.baseContext
                 }
             ).then(res => {
                 if (res.status != 200) return reject("Could not download search results: status code is " + res.status);
@@ -212,7 +160,7 @@ class YTMClient {
                             "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
                             {
                                 context: {
-                                    ...this.context,
+                                    ...this.baseContext,
                                     clickTracking: {clickTrackingParams: endpoints[type].clickTrackingParams}
                                 },
                                 ...endpoints[type].searchEndpoint,
@@ -366,7 +314,6 @@ class YTMClient {
                     "enablePersistentPlaylistPanel": true,
                     "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
                     "playlistId": queueId,
-                    "params": "wAEB8gECeAHqBAtUTVlydkVNWnJfVQ%3D%3D",
                     "isAudioOnly": true,
                     "responsiveSignals": {
                         "videoInteraction": [
@@ -377,65 +324,9 @@ class YTMClient {
                             }
                         ]
                     },
-                    "queueContextParams": "CAEaEVJEQU1WTVRNWXJ2RU1acl9VIKHb2Ymbvo0DMgtUTVlydkVNWnJfVUoLVE1ZcnZFTVpyX1VQAFoECAAQAXgB",
-                    "context": {
-                        "client": {
-                            "hl": "fr",
-                            "gl": "FR",
-                            "remoteHost": "85.69.106.218",
-                            "deviceMake": "",
-                            "deviceModel": "",
-                            "visitorData": "CgtHZTJVQmh1WnVFTSjyq8vBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBL",
-                            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
-                            "clientName": "WEB_REMIX",
-                            "clientVersion": "1.20250519.03.01",
-                            "osName": "Windows",
-                            "osVersion": "10.0",
-                            "originalUrl": "https://music.youtube.com/watch?v=TMYrvEMZr_U&cbrd=1",
-                            "platform": "DESKTOP",
-                            "clientFormFactor": "UNKNOWN_FORM_FACTOR",
-                            "configInfo": {
-                                "appInstallData": "CPKry8EGEMyJzxwQmY2xBRDr6P4SEOujzxwQ_vP_EhDM364FEIiHsAUQuOTOHBCI468FEP-ezxwQiJLOHBCvhs8cEIiEuCIQ5qDPHBCd0LAFEImwzhwQmvTOHBDwnc8cEJmYsQUQ0-GvBRC52c4cEMnmsAUQvYqwBRDins8cENr3zhwQ4OD_EhDroc8cEOK4sAUQ15zPHBC9mbAFELfq_hIQvbauBRCcm88cEIHNzhwQyfevBRCwic8cEJT-sAUQ7aDPHBD8ss4cEParsAUQ_pzPHBC72c4cEJOGzxwQ66DPHBCmnc8cEN68zhwQh6zOHBCKgoATEKOmzxwQ8OLOHBD_1c4cKixDQU1TR3hVUW9MMndETkhrQnBTQ0V0WFM2Z3Y1N0FQSjNBV2dwQVFkQnc9PQ%3D%3D",
-                                "coldConfigData": "CPOry8EGGjJBT2pGb3gyY2dsSEhxaGh5NFNGV29ucUpVVWMzRUI5T2dFM0xoYnl6M2Fna0FlOXNYdyIyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc%3D",
-                                "coldHashData": "CPOry8EGEhM4MzcyMjg4Nzg1MDY2MDg0NzkyGPOry8EGMjJBT2pGb3gyY2dsSEhxaGh5NFNGV29ucUpVVWMzRUI5T2dFM0xoYnl6M2Fna0FlOXNYdzoyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc%3D",
-                                "hotHashData": "CPOry8EGEhQxMTIxNDYxODY0NTg2ODY2NjIyMhjzq8vBBjIyQU9qRm94MmNnbEhIcWhoeTRTRldvbnFKVVVjM0VCOU9nRTNMaGJ5ejNhZ2tBZTlzWHc6MkFPakZveDJjZ2xISHFoaHk0U0ZXb25xSlVVYzNFQjlPZ0UzTGhieXozYWdrQWU5c1h3"
-                            },
-                            "browserName": "Firefox",
-                            "browserVersion": "138.0",
-                            "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                            "deviceExperimentId": "ChxOelV3T0RJNU9EYzJOakV5TXpNek1qYzBNdz09EPKry8EGGPKry8EG",
-                            "rolloutToken": "CN77_c3k1sKK2gEQmd_giJu-jQMYmd_giJu-jQM%3D",
-                            "screenWidthPoints": 1485,
-                            "screenHeightPoints": 731,
-                            "screenPixelDensity": 1,
-                            "screenDensityFloat": 1.25,
-                            "utcOffsetMinutes": 120,
-                            "userInterfaceTheme": "USER_INTERFACE_THEME_DARK",
-                            "timeZone": "Europe/Paris",
-                            "musicAppInfo": {
-                                "pwaInstallabilityStatus": "PWA_INSTALLABILITY_STATUS_UNKNOWN",
-                                "webDisplayMode": "WEB_DISPLAY_MODE_BROWSER",
-                                "storeDigitalGoodsApiSupportStatus": {
-                                    "playStoreDigitalGoodsApiSupportStatus": "DIGITAL_GOODS_API_SUPPORT_STATUS_UNSUPPORTED"
-                                }
-                            }
-                        },
-                        "user": {
-                            "lockedSafetyMode": false
-                        },
-                        "request": {
-                            "useSsl": true,
-                            "internalExperimentFlags": [],
-                            "consistencyTokenJars": []
-                        },
-                        "activePlayers": [
-                            {
-                                "playerContextParams": "Q0FFU0FnZ0I="
-                            }
-                        ]
-                    }
+                    context: this.baseContext
                 },
-                { headers: this.headers }
+                { headers: this.baseHeaders }
             )
             .then(res => {
                 if (res.status != 200) return reject("Could not download queue : status code is " + res.status);
@@ -475,7 +366,7 @@ class YTMClient {
                 },
                 {
                     headers: {
-                        ...this.headers,
+                        ...this.baseHeaders,
                         'X-YouTube-Client-Version': ytcfg.clientVersion
                     }
                 }
