@@ -182,7 +182,7 @@ class HTMLBuilder {
             : { album: null, video: info.video, queue: info.queue };
 
         var script = `<script>${js.replace("XVIDEOX", JSON.stringify(rinfo.video)).replace("XQUEUEX", JSON.stringify(rinfo.queue)).replace("XALBUMX", JSON.stringify(rinfo.album))}</script>`
-        return this.generatePage(params, 'Mew - Player', `<div id="playerbody"><div id="player">${infoBlock}${audioPlayer}</div>${queueBlock}</div>${script}`);
+        return this.generatePage(params, 'Mew - Player', `<div id="playerbody"><div id="player">${infoBlock}${audioPlayer}</div>${queueBlock}</div><div id="pautoplay">Audio autoplay is blocked.<br/>Please interact with the page to play the audio, and ideally disable autoplay restrictions.<span>Click anywhere to continue</span></div>${script}`);
     }
 
     legal(params) {

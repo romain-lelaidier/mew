@@ -187,13 +187,14 @@ a {
         flex: 4;
     }
     #pqueue {
-        height: calc(100vh - 8rem);
+        height: calc(100vh - 9rem);
         overflow: scroll;
     }
 }
 @media (max-aspect-ratio: 1) {
     #playerbody {
         flex-direction: column;
+        padding-top: min(2rem, calc((100vw - 0.9 * min(90vw, 20rem)) / 4));
     }
     #queue {
         width: 100%;
@@ -201,6 +202,7 @@ a {
 }
 #pqueue {
     padding: 0 0.2rem;
+    padding-bottom: 2rem;
     margin: 0.5rem 0;
 }
 #pqueue .song {
@@ -358,6 +360,27 @@ a {
     height: 0.8rem;
     width: 0.8rem;
     transform: translate(-0.08rem, -1px)
+}
+#pautoplay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 1.6rem);
+    background: var(--c-background);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    display: none;
+    text-align: center;
+    opacity: 0.9;
+}
+#pautoplay.on {
+    display: flex;
+}
+#pautoplay span {
+    opacity: 0.6;
+    font-style: italic;
 }
 #legal {
     max-width: 30rem;

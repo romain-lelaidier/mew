@@ -207,7 +207,7 @@ app.get('/web/play/:id', (req, res) => {
     // fs.promises.readFile("debug/eu.json")
     .then(info => {
         // info = JSON.parse(info.toString())
-        // fs.writeFileSync("debug/eu.json", JSON.stringify(info));
+        fs.writeFileSync("debug/eu.json", JSON.stringify(info));
         bres(res, 200, 'text/html', b.player(params, info));
     }).catch(err => {
         eres(res, err)

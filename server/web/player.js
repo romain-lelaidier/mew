@@ -99,6 +99,8 @@ class Player {
         this.pskip = document.getElementById("pskip");
         this.pskipleft = document.getElementById("pskipleft");
 
+        this.pautoplay = document.getElementById("pautoplay")
+
         this.colorthief = new ColorThief();
         this.root = document.querySelector(':root');
 
@@ -190,6 +192,7 @@ class Player {
 
         this.paudio.addEventListener("play", () => {
             this.pplaypauseicon.className = "ppause fa-solid fa-pause fa-xl";
+            this.pautoplay.classList.remove("on")
         })
 
         this.paudio.addEventListener("pause", () => {
@@ -318,7 +321,23 @@ class Player {
     playerLoadAndStart() {
         this.paudio.src = this.queue[this.i].stream.url;
         this.paudio.load();
-        this.paudio.play();
+        
+        var playPromise = this.paudio.play();
+
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                // Autoplay was prevented, show an error message or a button to let the user start playback
+                console.log("Autoplay prevented:", error);
+                this.pautoplay.classList.add("on");
+                var clicked = false;
+                this.pautoplay.addEventListener("click", () => {
+                    if (!clicked) {
+                        this.paudio.play();
+                    }
+                    clicked = true;
+                })
+            });
+        }
     }
 }
 
