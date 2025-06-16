@@ -444,9 +444,16 @@ class YTMClient {
                 this.downloadVideoData(info.id, player, ytcfg)
                 .then(extractedInfo => {
                     // unlocking stream urls
+                    var failedDecryptions = 0;
                     extractedInfo.formats.forEach(fmt => {
-                        fmt.url = player.decryptFormatStreamUrl(fmt)
-                    })
+                        try {
+                            fmt.url = player.decryptFormatStreamUrl(fmt)
+                        } catch(err) {
+                            failedDecryptions++;
+                        }
+                    });
+                    if (failedDecryptions > 0) console.error(`Unable to decypher stream urls for ${failedDecryptions} formats`)
+
                     // cleaning formats
                     extractedInfo.formats = extractedInfo.formats.map(fmt => {
                         return {
@@ -455,7 +462,7 @@ class YTMClient {
                             mimeType: fmt.mimeType
                         }
                     });
-                    
+
                     extractedInfo.stream = utils.chooseFormat(extractedInfo.formats);
                     delete extractedInfo.formats;
 

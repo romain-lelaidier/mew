@@ -198,6 +198,11 @@ class Player {
         this.paudio.addEventListener("pause", () => {
             this.pplaypauseicon.className = "pplay fa-solid fa-play fa-xl"
         })
+
+        this.paudio.addEventListener('error', function() {
+            alert("Error loading audio file. Mew could not extract the stream URL.");
+            history.back()
+        });
     }
 
     loadVideo(i) {
@@ -321,7 +326,8 @@ class Player {
     playerLoadAndStart() {
         this.paudio.src = this.queue[this.i].stream.url;
         this.paudio.load();
-        
+        console.log(this.paudio, this.paudio.networkState)
+
         var playPromise = this.paudio.play();
 
         if (playPromise !== undefined) {

@@ -169,15 +169,24 @@ class YTPlayer {
     decryptFormatStreamUrl(format) {
         if (!this.extracted) throw "Player data is not extracted"
 
-        var sc = utils.parseQueryString(format.signatureCipher);
-        var url = `${sc.url}&${sc.sp || "signature"}=${encodeURIComponent((eval(this.sfc))(sc.s))}`;
-        var urlParams = utils.parseQueryString(url);
-
-        if ('n' in urlParams) {
-            var nDecrypted = eval(this.nfc)(urlParams.n)
-            url =utils.replaceUrlParam(url, 'n', nDecrypted)
+        if (format.signatureCipher) {
+            var sc = utils.parseQueryString(format.signatureCipher);
+            var url = `${sc.url}&${sc.sp || "signature"}=${encodeURIComponent((eval(this.sfc))(sc.s))}`;
+            var urlParams = utils.parseQueryString(url);
+            if ('n' in urlParams) {
+                var nDecrypted = eval(this.nfc)(urlParams.n)
+                url = utils.replaceUrlParam(url, 'n', nDecrypted)
+            }
+            return url
         }
 
+        // old school video
+        throw "Unable to decrypt format";
+        
+        var url = format.url;
+        var sc = utils.parseQueryString(url);
+        url = utils.replaceUrlParam(url, 'lsig', encodeURIComponent((eval(this.sfc))(sc.lsig)))
+        url = utils.replaceUrlParam(url, 'sig', encodeURIComponent((eval(this.sfc))(sc.sig)))
         return url
     }
 }
