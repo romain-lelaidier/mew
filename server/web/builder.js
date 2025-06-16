@@ -36,7 +36,7 @@ class HTMLBuilder {
     }
 
     index(params) {
-        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h3>A minimalist and ad-free YouTube Music player</h3>${this.searchBar(params)}${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}<span id="restriction">This Website is strictly restricted to its contributors.<br/>Users are aware that their usage of this tool violates YouTube's legal conditions. They accept all responsibilities.</span></div>`)
+        return this.generatePage(params, "Mew", `<div class="center"><h1>Welcome to Mew</h1><h3>A minimalist YouTube Music player</h3>${this.searchBar(params)}${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}<span id="restriction">This website is strictly restricted to its contributors.<br/>Users acknowledge that using this tool may be subject to third-party terms of service, including those of YouTube. By proceeding, users accept full responsibility for their actions and any resulting consequences.</span></div>`)
     }
 
     songDetailsSpan(r) {

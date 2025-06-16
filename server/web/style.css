@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap');
 
 :root {
-    --c-background: #a8cc8f;
+    --c-background: #eba6a6;
     --c-front: black;
     --c-searchbar: #fff4;
     --c-searchbar-hover: #fff6;
@@ -384,4 +384,5 @@ a {
     color: red;
     display: block;
     font-weight: bold;
+    max-width: 40rem;
 }
