@@ -53,25 +53,19 @@ class HTMLBuilder {
         var classStr = classNames.join(' ')
 
         if (r.type == "SONG") {
-            var downloadParams = [];
-            for (var type of [ 'title', 'artist', 'album', 'queueId' ]) {
-                if (r[type]) downloadParams.push(type + '=' + encodeURIComponent(r[type]));
-            }
+            var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
             return params.small 
-                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}?${downloadParams.join('&')}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
+                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
+                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
         }
 
         if (r.type == "VIDEO") {
-            var downloadParams = [];
-            for (var type of [ 'title', 'artist', 'queueId' ]) {
-                if (r[type]) downloadParams.push(type + '=' + encodeURIComponent(r[type]));
-            }
+            var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
             return params.small 
-                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}?${downloadParams.join('&')}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}?${downloadParams.join('&')}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</div></a>`
+                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
+                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</div></a>`
         }
 
         if (r.type == "ALBUM") {
@@ -151,14 +145,11 @@ class HTMLBuilder {
     }
 
     generateQueueResultDiv(params, r) {
-        var downloadParams = [];
-        for (var type of [ 'title', 'artist', 'album', 'queueId' ]) {
-            if (r[type]) downloadParams.push(type + '=' + encodeURIComponent(r[type]));
-        }
+        var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
         return params.small 
-            ? `<div class="song"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}?${downloadParams.join('&')}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-            : `<a class="song" href="/web/play/${r.id}?${downloadParams.join('&')}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
+            ? `<div class="song"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
+            : `<a class="song" href="/web/play/${r.id}${downloadParams}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
     }
 
     player(params, info, album=false) {
