@@ -156,9 +156,7 @@ class YTSearchParser {
             console.error(err);
             return endpoints;
         }
-
-        require('fs').writeFileSync("testing/search_contents.json", JSON.stringify(contents));
-
+        
         if (!utils.isIterable(contents)) return endpoints;
 
         contents.forEach(shelf => {

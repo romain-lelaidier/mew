@@ -113,7 +113,7 @@ class Player {
             this.album = album;
         } else {
             this.queueId = video.queueId;
-            this.queue = queue || [ video ];
+            this.queue = queue.length > 0 ? queue : [ video ];
             if (video.id != this.queue[0].id) {
                 this.queue.unshift(video);
             }

@@ -1,4 +1,3 @@
-const axios = require("axios")
 const regescape = require('regexp.escape');
 const utils = require('./utils')
 
@@ -7,6 +6,7 @@ class YTPlayer {
         this.pid = pid;
         this.plg = plg;
         this.extracted = false;
+        this.ww = new utils.WebWrapper();
     }
 
     toString() {
@@ -27,10 +27,11 @@ class YTPlayer {
 
     downloadFromWeb() {
         return new Promise((resolve, reject) => {
-            axios.get(this.buildUrl())
-            .then(res => {
-                if (res.status != 200) return reject(`Could not download player: status code is ${res.status}`);
-                this.js = res.data;
+            this.ww.get(
+                "player_ias", "js",
+                this.buildUrl()
+            ).then(js => {
+                this.js = js;
                 resolve()
             }).catch(reject)
         })

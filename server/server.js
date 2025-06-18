@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const fs = require('fs');
-const axios = require('axios');
 const app = express();
 const PORT = process.env.NODE_PORT || 8000;
 
@@ -22,6 +21,8 @@ const c = new YTMClient(MYSQL_CONFIG);
 c.init();
 
 const b = new HTMLBuilder();
+
+const ww = new utils.WebWrapper();
 
 app.use(express.json())
 
@@ -297,11 +298,13 @@ app.get('/web/img', (req, res) => {
     var valid = ares(res, url, 'No url provided');
     if (!valid) return;
 
-    axios.get(url, {
-        responseType: 'stream'
-    }).then(axres => {
+    ww.get(
+        "thumbnail", "png",
+        url,
+        { responseType: 'stream' }
+    ).then(axres => {
         res.status(200);
-        axres.data.pipe(res, end=true);
+        axres.pipe(res, end=true);
     }).catch(err => {
         eres(res, err)
     })

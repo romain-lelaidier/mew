@@ -127,6 +127,52 @@ function chooseThumbnail(thumbnails, width=Infinity) {
     return sorted[0];
 }
 
+function formatBytes(a,b=2){if(!+a)return"0 Bytes";const c=0>b?0:b,d=Math.floor(Math.log(a)/Math.log(1024));return`${parseFloat((a/Math.pow(1024,d)).toFixed(c))} ${["Bytes","KiB","MiB","GiB","TiB","PiB","EiB","ZiB","YiB"][d]}`}
+
+class WebWrapper {
+    // simplifies methods for scraping from web / local (for debug mode)
+
+    path(name, type) {
+        return `./testing/${name}.${type}`;
+    }
+
+    string(type, data) {
+        if (type == "json") return JSON.stringify(data);
+        return data.toString();
+    }
+
+    handle(res, name, type, method, url, local, resolve, reject) {
+        if (Math.floor(res.status / 100) != 2) {
+            reject(`${method} request (${name}) failed : status ${res.status} (url : ${url})`);
+            return;
+        }
+
+        var size = res.headers['content-length'] ? parseInt(res.headers['content-length']) : 
+            (type == 'json' ? JSON.stringify(res.data) : res.data).length;
+        console.log(`  ${method} ${name} -> ${formatBytes(size)}`);
+
+        if (local) fs.writeFileSync(this.path(name, type), this.string(type, res.data))
+
+        resolve(res.data);
+    }
+
+    get(name, type, url, options={}, local=false) {
+        return new Promise((resolve, reject) => {
+            axios.get(url, options).then(res => {
+                this.handle(res, name, type, 'GET', url, local, resolve, reject);
+            }).catch(reject);
+        })
+    }
+
+    post(name, type, url, data, options={}, local=false) {
+        return new Promise((resolve, reject) => {
+            axios.post(url, data, options).then(res => {
+                this.handle(res, name, type, 'POST', url, local, resolve, reject);
+            }).catch(reject);
+        })
+    }
+}
+
 module.exports = {
     parseQueryString,
     replaceUrlParam,
@@ -137,5 +183,6 @@ module.exports = {
     viewsToString,
     chooseFormat,
     chooseThumbnail,
-    mds: ' · '
+    mds: ' · ',
+    WebWrapper
 }
