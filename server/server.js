@@ -127,6 +127,26 @@ app.get('/api/extract_video/:id', (req, res) => {
     })
 })
 
+app.get('/api/extract_album/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{17}$/), 'Invalid album id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.getAlbum(obj)
+    .then(album => {
+        jres(res, album)
+    }).catch(err => {
+        console.log(err)
+        eres(res, err)
+    });
+})
+
 app.get('/api/mp3/:id', (req, res) => {
     const id = req.params.id;
     var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
