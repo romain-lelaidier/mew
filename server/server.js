@@ -65,7 +65,6 @@ app.get('/api/search_suggestions/:query', (req, res) => {
     const query = req.params.query;
 
     c.searchSuggestions(query).then(results => {
-        fs.writeFileSync(file, JSON.stringify(results));
         jres(res, results)
     }).catch(err => {
         console.log(err)
