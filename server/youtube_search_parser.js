@@ -50,9 +50,13 @@ class YTSearchParser {
                 musicResult.queueId = item.menuNavigationItemRenderer.navigationEndpoint.watchEndpoint.playlistId;
                 return;
             } catch(err) {
-                continue
+                continue;
             }
         }
+    }
+    
+    playlistId(id) {
+        return id.substring(id.length - 43);
     }
 
     extractRendererTypeAndId(renderer) {
@@ -65,6 +69,8 @@ class YTSearchParser {
                     return ["ARTIST", endpoint.browseEndpoint.browseId];
                 if (endpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ALBUM")
                     return ["ALBUM", endpoint.browseEndpoint.browseId];
+                if (endpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_PLAYLIST")
+                    return ["PLAYLIST", this.playlistId(endpoint.browseEndpoint.browseId) ];
             }
         } else {
             if ("playlistItemData" in renderer && "videoId" in renderer.playlistItemData) {
@@ -82,7 +88,7 @@ class YTSearchParser {
 
     extractRendererInfo(renderer) {
         let [type, id] = this.extractRendererTypeAndId(renderer);
-        if (type && ['VIDEO', 'ALBUM', 'ARTIST'].includes(type)) {
+        if (type && ['VIDEO', 'ALBUM', 'ARTIST', 'PLAYLIST'].includes(type)) {
             var extractText = (i, j) => renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer.text.runs[j]?.text;
             var musicResult = { 
                 type, id,
@@ -90,7 +96,7 @@ class YTSearchParser {
             };
             
             if ('thumbnail' in renderer) musicResult.thumbnails = renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-            
+
             for (let i = 1; i < renderer.flexColumns.length; i++) {
                 if ("runs" in renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text) {
                     this.parseRuns(renderer.flexColumns[i].musicResponsiveListItemFlexColumnRenderer.text.runs, musicResult)
@@ -272,6 +278,89 @@ class YTSearchParser {
         });
 
         return album
+    }
+
+    parsePlaylistSongResult(renderer) {
+        var result = {
+            thumbnails: renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails
+        };
+        // result.title = renderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.runs[0].text;
+        for (var flexColumn of renderer.flexColumns) {
+            this.parseRuns(flexColumn.musicResponsiveListItemFlexColumnRenderer.text.runs, result);
+        }
+        for (var fixedColumn of renderer.fixedColumns) {
+            this.parseRuns(fixedColumn.musicResponsiveListItemFixedColumnRenderer.text.runs, result);
+        }
+        return result;
+    }
+
+    extractPlaylist(data) {
+        var playlist = {
+            songs: []
+        };
+
+        var playlistRenderer, contents;
+
+        try {
+            playlistRenderer = data.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer;
+            contents = data.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.contents;
+        } catch(err) {
+            console.error(err);
+            return playlist;
+        }
+
+        // parsing album info
+        playlist.title = playlistRenderer.title.runs[0].text;
+        playlist.thumbnails = playlistRenderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
+
+        this.parseRuns(playlistRenderer.subtitle.runs, playlist);
+
+        if (!utils.isIterable(contents)) return playlist;
+
+        var index = 1;
+        contents.forEach(musicObj => {
+            try {
+                var renderer = musicObj.musicResponsiveListItemRenderer;
+                var musicResult = this.parsePlaylistSongResult(renderer);
+                if (musicResult) {
+                    if (!musicResult.index) musicResult.index = index++;
+                    playlist.songs.push(musicResult)
+                }
+            } catch(err) {
+                console.error(err)
+            }
+        });
+
+        return playlist
+    }
+
+    parseBrowsingResults(contents) {
+        var results = [];
+        for (var content of contents) {
+            try {
+                var renderer = content.musicCarouselShelfRenderer;
+                var title = renderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text;
+                var items = [];
+                for (var icontent of renderer.contents) {
+                    var irenderer = icontent.musicTwoRowItemRenderer;
+                    var [ itype, iid ] = this.extractRendererTypeAndId(irenderer);
+                    items.push({
+                        title: irenderer.title.runs[0].text,
+                        subtitle: irenderer.subtitle.runs[0].text,
+                        type: itype,
+                        id: iid,
+                        thumbnails: irenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails
+                    })
+                }
+                results.push({
+                    title,
+                    items
+                })
+            } catch(err) {
+                console.error(err);
+            }
+        }
+        return results;
     }
 }
 

@@ -84,7 +84,7 @@ app.get('/api/search/:query', (req, res) => {
     })
 })
 
-app.post('/api/extract_video/', (req, res) => {
+app.post('/api/video/', (req, res) => {
     var valid = ares(res, "info" in req.body, 'No "info" field provided')
         && ares(res, "id" in req.body.info, 'No "id" field provided')
         && ares(res, req.body.info.id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
@@ -106,7 +106,7 @@ app.post('/api/extract_video/', (req, res) => {
     })
 })
 
-app.get('/api/extract_video/:id', (req, res) => {
+app.get('/api/video/:id', (req, res) => {
     const id = req.params.id;
     var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
     if (!valid) return;
@@ -126,7 +126,23 @@ app.get('/api/extract_video/:id', (req, res) => {
     })
 })
 
-app.get('/api/extract_album/:id', (req, res) => {
+app.get('/api/queue/:qid/:id', (req, res) => {
+    const qid = req.params.qid;
+    const id = req.params.id;
+    var valid = ares(res, qid.match(/^[a-zA-Z0-9_-]{17}$/), 'Invalid video id')
+        && ares(res, id.match(/^[a-zA-Z0-9_-]{11}$/), 'Invalid video id')
+    if (!valid) return;
+
+    c.downloadQueue(id, qid)
+    .then(queue => {
+        jres(res, queue)
+    }).catch(err => {
+        console.log(err)
+        eres(res, err)
+    })
+})
+
+app.get('/api/album/:id', (req, res) => {
     const id = req.params.id;
     var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{17}$/), 'Invalid album id')
     if (!valid) return;
@@ -306,6 +322,28 @@ app.get('/web/album/:id', (req, res) => {
         fs.writeFileSync('debug/album.json', JSON.stringify(album))
         // album = JSON.parse(album)
         bres(res, 200, 'text/html', b.album(params, album));
+    }).catch(err => {
+        eres(res, err)
+    });
+})
+
+app.get('/web/playlist/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{40}/), 'Invalid playlist id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.getPlaylist(obj)
+    // fs.promises.readFile('debug/playlist.json')
+    .then(playlist => {
+        fs.writeFileSync('debug/playlist.json', JSON.stringify(playlist))
+        // playlist = JSON.parse(playlist)
+        bres(res, 200, 'text/html', b.playlist(params, playlist));
     }).catch(err => {
         eres(res, err)
     });

@@ -341,10 +341,50 @@ class YTMClient {
         })
     }
 
+    browse(continuation = {}, depth = 0) {
+        return new Promise((resolve, reject) => {
+            var url = 'continuation' in continuation && 'clickTrackingParams' in continuation
+                ? "https://music.youtube.com/youtubei/v1/browse?prettyPrint=false&type=next&continuation=" + continuation.continuation + "&itct=" + continuation.clickTrackingParams
+                : "https://music.youtube.com/youtubei/v1/browse?prettyPrint=false&type=next";
+
+            this.ww.post(
+                "yti_browse_" + depth, "json",
+                url,
+                { context: this.baseContext },
+                { headers: this.baseHeaders },
+            ).then(json => {
+                var continuation;
+                try {
+                    continuation = depth == 0 
+                        ? json.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.continuations[0].nextContinuationData
+                        : json.continuationContents.sectionListContinuation.continuations[0].nextContinuationData;
+                } catch(err) {
+                    return reject(err);
+                }
+
+                var contents = depth == 0
+                    ? json.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+                    : json.continuationContents.sectionListContinuation.contents;
+
+                var results = this.parser.parseBrowsingResults(contents);
+                if (depth == 2) {
+                    resolve(results);
+                } else {
+                    this.browse(continuation, depth+1)
+                    .then(followingResults => {
+                        resolve(results.concat(followingResults))
+                    })
+                    .catch(reject);
+                }
+
+            }).catch(reject)
+        })
+    }
+
     getAlbum(info) {
         return new Promise((resolve, reject) => {
             this.ww.get(
-                "browse", "html",
+                "browse_album", "html",
                 'https://music.youtube.com/browse/' + info.id,
                 {
                     headers: {
@@ -363,6 +403,33 @@ class YTMClient {
                 album.id = info.id;
 
                 resolve(album);
+            })
+        })
+    }
+
+    getPlaylist(info) {
+        return new Promise((resolve, reject) => {
+            this.ww.get(
+                "browse_playlist", "html",
+                'https://music.youtube.com/playlist?list=' + info.id,
+                {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
+                    }
+                },
+            )
+            .then(html => {
+                var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
+                if (!ytJSCodeMatch) return reject('Could not find initial data in playlist html');
+
+                var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
+                var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
+                fs.writeFileSync('./testing/ytInitialData.json', JSON.stringify(data));
+
+                var playlist = this.parser.extractPlaylist(data);
+                playlist.id = info.id;
+
+                resolve(playlist);
             })
         })
     }
@@ -558,8 +625,9 @@ module.exports = YTMClient;
 // const MYSQL_CONFIG = JSON.parse(fs.readFileSync("./mysql_config.json"));
 // var c = new YTMClient(MYSQL_CONFIG);
 // c.init()
-// c.EU({ id: "sHwwDw_27D0" })
+// c.getPlaylist({ id: "PL5qtVKIpPypEQnr1TN_jbpmSw33lccufV" })
 // .then(res => {
 //     console.log(res)
+//     // console.log(res[res.length-2])
 //     // fs.writeFileSync('testing/albumdata.json', JSON.stringify(res))
 // }).catch(console.error)

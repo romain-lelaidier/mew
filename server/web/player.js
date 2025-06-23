@@ -79,7 +79,7 @@ class Thumbnail {
 }
 
 class Player {
-    constructor(video, queue, album) {
+    constructor(info, queue) {
         this.pimg = document.getElementById("pimg");
         this.ptitle = document.getElementById("ptitle");
         this.partist = document.getElementById("partist");
@@ -106,19 +106,9 @@ class Player {
 
         this.serverURL = document.URL.substring(0, document.URL.indexOf('/web/play'))
 
-        if (album) {
-            this.queueId = album.id
-            this.queue = album.songs
-            this.isalbum = true;
-            this.album = album;
-        } else {
-            this.queueId = video.queueId;
-            this.queue = queue.length > 0 ? queue : [ video ];
-            if (video.id != this.queue[0].id) {
-                this.queue.unshift(video);
-            }
-            this.isalbum = false;
-        }
+        this.info = info;
+        this.isalbum = info != null && 'id' in info && info.id.length == 17;
+        this.queue = queue;
         for (let i = 0; i < this.queue.length; i++) {
             this.queue[i].queueIndex = i;
         }
@@ -212,18 +202,22 @@ class Player {
                 if (i < 0 || i >= this.queue.length) return resolve();
 
                 var r = this.queue[i];
-                if (r.stream) return resolve();
+                if (r.stream) {
+                    resolve();
+                    this.downloadQueue(i);
+                }
 
                 var downloadParams = [];
                 for (var type of [ 'title', 'artist', 'album' ]) {
                     if (r[type]) downloadParams.push(type + '=' + encodeURIComponent(r[type]));
                 }
-                if (i+1 == this.queue.length) {
-                    downloadParams.push("queueId=" + this.queueId);
+
+                if (i+1 == this.queue.length && 'queueId' in r) {
+                    downloadParams.push("qid=" + r.queueId);
                 }
 
                 var xml = new XMLHttpRequest();
-                xml.open('GET', this.serverURL + '/api/extract_video/' + r.id + '?' + downloadParams.join('&'));
+                xml.open('GET', this.serverURL + '/api/video/' + r.id + '?' + downloadParams.join('&'));
                 xml.onload = () => {
                     var { queue, video } = JSON.parse(xml.responseText);
                     for (var [ key, value ] of Object.entries(video)) {
@@ -237,6 +231,27 @@ class Player {
                     }
                     if (queue.length > 0) this.queue.push(...queue);
                     resolve();
+                }
+                xml.send();
+            } catch(err) {
+                reject(err);
+            }
+        })
+    }
+    
+    downloadQueue(i) {
+        return new Promise((resolve, reject) => {
+            try {
+                if (i < 0 || i >= this.queue.length) return resolve();
+
+                var r = this.queue[i];
+                if (!('queueId' in r)) return resolve();
+
+                var xml = new XMLHttpRequest();
+                xml.open('GET', this.serverURL + '/api/queue/' + r.queueId + '/' + r.id);
+                xml.onload = () => {
+                    this.queue = this.queue.concat(JSON.parse(xml.responseText));
+                    this.buildQueue(i+1);
                 }
                 xml.send();
             } catch(err) {
@@ -278,8 +293,9 @@ class Player {
         }.bind(this));
     }
 
-    buildQueue() {
-        this.queue.forEach(r => {
+    buildQueue(bi=0) {
+        // bi: beginning index
+        this.queue.slice(bi).forEach(r => {
             r.a = document.createElement("a");
             r.a.setAttribute("class", "song");
             r.a.addEventListener("click", () => {
@@ -312,12 +328,12 @@ class Player {
         })
         new Thumbnail(
             this.pimg,
-            this.isalbum ? this.album.thumbnails : current.thumbnails,
+            this.isalbum ? this.info.thumbnails : current.thumbnails,
             true    // crossOrigin
         );
         this.ptitle.innerText = current.title;
-        this.partist.innerText = this.isalbum ? this.album.artist : current.artist;
-        this.palbum.innerText = this.isalbum ? this.album.title : current.album;
+        this.partist.innerText = this.isalbum ? this.info.artist : current.artist;
+        this.palbum.innerText = this.isalbum ? this.info.title : current.album;
         this.pslider.value = 0;
         this.pcurrenttime.textContent = durationToString(0);
         this.ptotaltime.textContent = durationToString(current.duration);
@@ -348,11 +364,9 @@ class Player {
 }
 
 window.onload = () => {
-    var video = XVIDEOX;
+    var info = XINFOX;
     var queue = XQUEUEX;
-    var album = XALBUMX;
-    console.log(video);
+    console.log(info);
     console.log(queue);
-    console.log(album);
-    new Player(video, queue, album);
+    new Player(info, queue);
 };

@@ -50,7 +50,7 @@ class HTMLBuilder {
     generateResultDiv(params, r) {
         var classNames = [ r.type.toLowerCase() ];
         if (r.top) classNames.push('top');
-        var classStr = classNames.join(' ')
+        var classStr = classNames.join(' ');
 
         if (r.type == "SONG") {
             var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
@@ -74,6 +74,12 @@ class HTMLBuilder {
                 : `<div><a href="/web/album/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span></div></a></div>`
         }
 
+        if (r.type == "PLAYLIST") {
+            return params.small
+                ? `<div><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/playlist/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
+                : `<div><a href="/web/playlist/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span></div></a></div>`
+        }
+
         if (r.type == "ARTIST") {
             return `<div class="${classStr}">
                 <img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
@@ -94,9 +100,10 @@ class HTMLBuilder {
                     SONG: "Songs",
                     VIDEO: "Videos",
                     ALBUM: "Albums",
-                    ARTIST: "Artists"
+                    ARTIST: "Artists",
+                    PLAYLIST: "Playlists"
                 }
-                rbhtml += previousType == "ALBUM" || previousType == "ARTIST"
+                rbhtml += previousType == "ALBUM" || previousType == "ARTIST" || previousType == "PLAYLIST"
                     ? `<div class="slider">${typehtml}</div>` : typehtml;
                 if (!last) rbhtml += `<h3>${names[r.type]}</h3>`;
                 previousType = r.type;
@@ -138,12 +145,6 @@ class HTMLBuilder {
         return `<div><span><a href="/web/eudc/${song.id}?${downloadParams}">${song.index}. <b>${song.title}</b></a></span><span>${this.songDetailsSpan(song)}</span></div>`
     }
 
-    album(params, album) {
-        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
-
-        return this.player(params, album, true);
-    }
-
     generateQueueResultDiv(params, r) {
         var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
@@ -152,7 +153,7 @@ class HTMLBuilder {
             : `<a class="song" href="/web/play/${r.id}${downloadParams}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
     }
 
-    player(params, info, album=false) {
+    player(params, result, type=null) {
         var infoBlock = `<div id="pimgcontainer"><img crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
@@ -168,11 +169,27 @@ class HTMLBuilder {
         var queueBlock = `<div id="queue">${this.searchBar(params)}<h3>Queue</h3><div id="pqueue" class="holder"></div></div>`
         var js = fs.readFileSync("./web/player.js").toString();
 
-        var rinfo = album
-            ? { album: info, video: null, queue: null }
-            : { album: null, video: info.video, queue: info.queue };
+        // var rinfo;
+        // if (type == "ALBUM") {
+        //     rinfo = { album: info, video: null, queue: null }
+        // } else if (type == "PLAYLIST") {
+        //     rinfo = { album: info, video: null, queue: null }
+        // } else {
+        //     rinfo = { album: null, video: info.video, queue: info.queue };
+        // }
 
-        var script = `<script>${js.replace("XVIDEOX", JSON.stringify(rinfo.video)).replace("XQUEUEX", JSON.stringify(rinfo.queue)).replace("XALBUMX", JSON.stringify(rinfo.album))}</script>`
+        var info, queue;
+        if (type == "ALBUM" || type == "PLAYLIST") {
+            queue = result.songs;
+            delete result.songs;
+            info = result;
+        } else {
+            queue = [ result.video ].concat(result.queue)
+            info = null;
+        }
+
+        var script = `<script>${js.replace("XINFOX", JSON.stringify(info)).replace("XQUEUEX", JSON.stringify(queue))}</script>`;
+
         return this.generatePage(params, 'Mew - Player', `<div id="playerbody"><div id="player">${infoBlock}${audioPlayer}</div>${queueBlock}</div><div id="pautoplay">Audio autoplay is blocked.<br/>Please interact with the page to play the audio, and ideally disable autoplay restrictions.<span>Click anywhere to continue</span></div>${script}`);
     }
 
@@ -180,6 +197,20 @@ class HTMLBuilder {
         var html = fs.readFileSync('./web/legal.html')
         return this.generatePage(params, 'Mew - Legal', html);
     }
+
+    
+    album(params, album) {
+        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
+
+        return this.player(params, album, "ALBUM");
+    }
+
+    playlist(params, playlist) {
+        if (params.small) return this.generatePage(params, "Mew - Playlist", `<div style="display:flex;gap:1rem;"><div><span><b><i>${playlist.title}</i></b></span><br><span><b>${playlist.subtitle}</b></span><br><img src="${utils.chooseThumbnail(playlist.thumbnails, 120).url}"/></div><div class="playlistSongs">${playlist.songs.map(song => this.generateAlbumSongDiv(playlist, song)).join('<br>')}</div></div>`);
+
+        return this.player(params, playlist, "PLAYLIST");
+    }
+
 }
 
 module.exports = HTMLBuilder;

@@ -152,6 +152,9 @@ a {
     width: 120px;
     text-align: center;
 }
+.holder .slider img {
+    height: 120px;
+}
 .artist img {
     border-radius: 50%;
 }

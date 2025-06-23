@@ -124,52 +124,65 @@ function chooseThumbnail(thumbnails, width=Infinity) {
         .sort((thb1, thb2) => thb2.width - thb1.width);
     var filtered = sorted.filter(thb => thb.width <= width)
     if (filtered.length > 0) return filtered[0]
-    return sorted[0];
+    return sorted[sorted.length - 1];
 }
 
 function formatBytes(a,b=2){if(!+a)return"0 Bytes";const c=0>b?0:b,d=Math.floor(Math.log(a)/Math.log(1024));return`${parseFloat((a/Math.pow(1024,d)).toFixed(c))} ${["Bytes","KiB","MiB","GiB","TiB","PiB","EiB","ZiB","YiB"][d]}`}
 
 class WebWrapper {
-    // simplifies methods for scraping from web / local (for debug mode)
+    // simplifies methods for scraping from web / save (for debug mode)
 
     path(name, type) {
         return `./testing/${name}.${type}`;
     }
 
-    string(type, data) {
+    objToString(type, data) {
         if (type == "json") return JSON.stringify(data);
         return data.toString();
     }
 
-    handle(res, name, type, method, url, local, resolve, reject) {
-        if (Math.floor(res.status / 100) != 2) {
-            reject(`${method} request (${name}) failed : status ${res.status} (url : ${url})`);
-            return;
-        }
-
-        var size = res.headers['content-length'] ? parseInt(res.headers['content-length']) : 
-            (type == 'json' ? JSON.stringify(res.data) : res.data).length;
-        console.log(`  ${method} ${name} -> ${formatBytes(size)}`);
-
-        if (local) fs.writeFileSync(this.path(name, type), this.string(type, res.data))
-
-        resolve(res.data);
+    stringToObj(type, data) {
+        if (type == "json") return JSON.parse(data);
+        return data;
     }
 
-    get(name, type, url, options={}, local=false) {
+    request(method, name, type, url, data, options={}, save=true, load=false) {
         return new Promise((resolve, reject) => {
-            axios.get(url, options).then(res => {
-                this.handle(res, name, type, 'GET', url, local, resolve, reject);
+
+            var path = this.path(name, type);
+            if (load && fs.existsSync(path)) {
+                resolve(this.stringToObj(type, fs.readFileSync(path)));
+                return;
+            }
+
+            var request = method == 'GET'
+                ? axios.get(url, options)
+                : axios.post(url, data, options);
+
+            request.then(res => {
+                if (Math.floor(res.status / 100) != 2) {
+                    reject(`${method} request (${name}) failed : status ${res.status} (url : ${url})`);
+                    return;
+                }
+
+                var size = res.headers['content-length']
+                    ? parseInt(res.headers['content-length'])
+                    : (type == 'json' ? JSON.stringify(res.data) : res.data).length;
+                console.log(`  ${method} ${name} -> ${formatBytes(size)}`);
+
+                if (save) fs.writeFileSync(path, this.objToString(type, res.data))
+
+                resolve(res.data);
             }).catch(reject);
         })
     }
 
-    post(name, type, url, data, options={}, local=false) {
-        return new Promise((resolve, reject) => {
-            axios.post(url, data, options).then(res => {
-                this.handle(res, name, type, 'POST', url, local, resolve, reject);
-            }).catch(reject);
-        })
+    get(name, type, url, options={}, save=true, load=false) {
+        return this.request('GET', name, type, url, null, options, save, load);
+    }
+
+    post(name, type, url, data, options={}, save=true, load=false) {
+        return this.request('POST', name, type, url, data, options, save, load);
     }
 }
 
