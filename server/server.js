@@ -193,6 +193,11 @@ app.get('/web/', (req, res) => {
     bres(res, 200, 'text/html', b.index(params));
 })
 
+app.get('/web/url', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    bres(res, 200, 'text/html', b.urlPage(params));
+})
+
 app.get('/web/legal', (req, res) => {
     var params = utils.parseQueryString(req._parsedUrl.query);
     bres(res, 200, 'text/html', b.legal(params));
@@ -210,6 +215,20 @@ app.get('/web/css', (req, res) => {
     res.status(200);
     res.setHeader('Content-type', 'text/css');
     fs.createReadStream(path).pipe(res, end=true);
+})
+
+app.get('/web/browse', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+
+    // fs.promises.readFile('./debug/browse.json')
+    c.browse()
+    .then(info => {
+        // info = JSON.parse(info)
+        fs.writeFileSync('./debug/browse.json', JSON.stringify(info));
+        bres(res, 200, 'text/html', b.browse(params, info));
+    }).catch(err => {
+        eres(res, err);
+    })
 })
 
 app.get('/web/search', (req, res) => {
@@ -329,8 +348,8 @@ app.get('/web/album/:id', (req, res) => {
 
 app.get('/web/playlist/:id', (req, res) => {
     const id = req.params.id;
-    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{40}/), 'Invalid playlist id')
-    if (!valid) return;
+    // var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{40}/), 'Invalid playlist id')
+    // if (!valid) return;
 
     var obj = { id };
     var params = utils.parseQueryString(req._parsedUrl.query);

@@ -1,0 +1,17 @@
+<div class="center">
+<h1>Paste URL here</h1>
+<form onsubmit="load()"><input type="text" id="paster" placeholder="https://youtu.be/..."></form>
+<script>
+var b=document.getElementById("paster");
+function load(u){
+    if(u==null)u=b.value;
+    var m=u.match("http(?:s?):\\/\\/(?:www\\.)?youtu(?:be\\.com\\/watch\\?v=|\\.be\\/)([\\w\\-\\_]*)(&(amp;)?[\\w\\?=]*)?");
+    if(m){for(var a of m.slice(2)){if (a!=undefined&&a.indexOf("&list=")==0){
+        var pid=a.substring(6);
+        window.href="/web/playlist/" + pid;
+    }}}
+    // console.log(k,m)
+};
+b.addEventListener("paste",e=>{load((e.clipboardData || window.clipboardData).getData('text'))});
+</script>
+</div>

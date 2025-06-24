@@ -56,7 +56,11 @@ class YTSearchParser {
     }
     
     playlistId(id) {
-        return id.substring(id.length - 43);
+        id = id.substring(id.length - 43);
+        if (id.indexOf('VL') == 0) {
+            id = id.substring(2);
+        }
+        return id;
     }
 
     extractRendererTypeAndId(renderer) {
@@ -334,6 +338,39 @@ class YTSearchParser {
         return playlist
     }
 
+    parseContent(content) {
+        // console.log(content)
+        try {
+            var item = {};
+            var renderer;
+            if ('musicTwoRowItemRenderer' in content) {
+                renderer = content.musicTwoRowItemRenderer;
+                item.thumbnails = renderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails
+            } else if ('musicResponsiveListItemRenderer' in content) {
+                renderer = content.musicResponsiveListItemRenderer;
+                item.thumbnails = renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails
+            }
+            var [ type, id ] = this.extractRendererTypeAndId(renderer);
+            item.type = type;
+            item.id = id;
+            if ('title' in renderer) {
+                item.title = renderer.title.runs[0].text;
+            }
+            if ('subtitle' in renderer) {
+                item.subtitle = renderer.subtitle.runs[0].text;
+            }
+            if (!('title' in item) && 'flexColumns' in renderer) {
+                var runs = [].concat(...renderer.flexColumns.map(fc => fc.musicResponsiveListItemFlexColumnRenderer.text.runs));
+                this.parseRuns(runs, item);
+            }
+            if ('artist' in item) item.type = "SONG";
+            return item;
+        } catch(err) {
+            console.error(err);
+            return null;
+        }
+    }
+
     parseBrowsingResults(contents) {
         var results = [];
         for (var content of contents) {
@@ -342,20 +379,15 @@ class YTSearchParser {
                 var title = renderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text;
                 var items = [];
                 for (var icontent of renderer.contents) {
-                    var irenderer = icontent.musicTwoRowItemRenderer;
-                    var [ itype, iid ] = this.extractRendererTypeAndId(irenderer);
-                    items.push({
-                        title: irenderer.title.runs[0].text,
-                        subtitle: irenderer.subtitle.runs[0].text,
-                        type: itype,
-                        id: iid,
-                        thumbnails: irenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails
+                    var item = this.parseContent(icontent);
+                    if (item) items.push(item);
+                }
+                if (items.length > 0) {
+                    results.push({
+                        title,
+                        items
                     })
                 }
-                results.push({
-                    title,
-                    items
-                })
             } catch(err) {
                 console.error(err);
             }
