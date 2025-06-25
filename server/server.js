@@ -186,6 +186,19 @@ app.get('/api/mp3/:id', (req, res) => {
     })
 })
 
+app.get('/api/color', (req, res) => {
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    var valid = ares(res, 'url' in params, 'No URL provided')
+            && ares(res, 'id' in params, 'No ID provided');
+    if (!valid) return;
+
+    c.extractColor(params.id, params.url).then(color => {
+        jres(res, color);
+    }).catch(err => {
+        eres(res, err);
+    })
+})
+
 // web server
 
 app.get('/web/', (req, res) => {

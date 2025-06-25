@@ -184,6 +184,30 @@ class WebWrapper {
     post(name, type, url, data, options={}, save=true, load=false) {
         return this.request('POST', name, type, url, data, options, save, load);
     }
+
+    thumbnail(id, url, forceDownload) {
+        return new Promise((resolve, reject) => {
+            var path = `./thumbs/${id}.png`;
+
+            if (!forceDownload && fs.existsSync(path)) {
+                return resolve(path);
+            }
+
+            console.log("  GET thumbnailColor", id);
+
+            axios.get(
+                url,
+                { responseType: "stream" }
+            )
+            .then(res => {
+                res.data.pipe(fs.createWriteStream(path))
+                res.data.on("end", () => {
+                    resolve(path);
+                })
+            })
+            .catch(reject);
+        })
+    }
 }
 
 module.exports = {

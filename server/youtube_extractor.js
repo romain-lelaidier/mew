@@ -7,6 +7,7 @@ const DownloadsDB = require('./downloads_db');
 const YTSearchParser = require('./youtube_search_parser')
 const YTPlayer = require('./youtube_player')
 const utils = require('./utils');
+const ColorThief = require('colorthief');
 
 class YTMClient {
     constructor(dbConfig) {
@@ -616,6 +617,30 @@ class YTMClient {
                     }).catch(reject);
                 }).catch(reject);
             }).catch(reject);
+        })
+    }
+
+    extractColor(id, url, forceDownload=false) {
+        return new Promise((resolve, reject) => {
+            this.ww.thumbnail(id, url, forceDownload).then(path => {
+                ColorThief.getColor(path)
+                .then(c => {
+                    var nc = Math.sqrt(c.map(x => x*x).reduce((a,b)=>a+b,0))
+                    c = c.map(x => Math.round(x*310/nc));
+                    resolve({
+                        r: c[0],
+                        g: c[1],
+                        b: c[2]
+                    })
+                })
+                .catch((err) => {
+                    if (!forceDownload) {
+                        return this.extractColor(id, url, true).then(resolve).catch(reject);
+                    } else {
+                        reject(err);
+                    }
+                });
+            })
         })
     }
 }
