@@ -7,7 +7,8 @@ const DownloadsDB = require('./downloads_db');
 const YTSearchParser = require('./youtube_search_parser')
 const YTPlayer = require('./youtube_player')
 const utils = require('./utils');
-const ColorThief = require('colorthief');
+const PaletteDB = require('./palette_db');
+// const ColorThief = require('colorthief');
 
 class YTMClient {
     constructor(dbConfig) {
@@ -46,13 +47,15 @@ class YTMClient {
         this.mysqlConnection = await mysql.createConnection(this.dbConfig);
         this.pdb = new PlayerDB(this.mysqlConnection);
         this.ddb = new DownloadsDB(this.mysqlConnection);
+        this.paletteDB = new PaletteDB(this.mysqlConnection);
 
         this.pdb.init();
         this.ddb.init();
+        this.paletteDB.init();
 
         for (const folder of [
             "streams",
-            "thumbs",
+            "tmp",
             "debug",
             "testing"
         ]) {
@@ -620,27 +623,34 @@ class YTMClient {
         })
     }
 
-    extractColor(id, url, forceDownload=false) {
+    extractColors(id, url, forceDownload=false) {
         return new Promise((resolve, reject) => {
-            this.ww.thumbnail(id, url, forceDownload).then(path => {
-                ColorThief.getColor(path)
-                .then(c => {
-                    var nc = Math.sqrt(c.map(x => x*x).reduce((a,b)=>a+b,0))
-                    c = c.map(x => Math.round(x*310/nc));
-                    resolve({
-                        r: c[0],
-                        g: c[1],
-                        b: c[2]
+            this.paletteDB.loadPalette(id).then(palette => {
+                resolve(palette);
+            }).catch(() => {
+                this.ww.thumbnail(id, url, forceDownload).then(path => {
+                    utils.colorPalette(path)
+                    .then(palette => {
+                        this.paletteDB.savePalette(id, palette);
+                        resolve(palette);
                     })
-                })
-                .catch((err) => {
-                    if (!forceDownload) {
-                        return this.extractColor(id, url, true).then(resolve).catch(reject);
-                    } else {
-                        reject(err);
-                    }
+                    .catch((err) => {
+                        if (!forceDownload) {
+                            this.extractColors(id, url, true)
+                            .then(resolve)
+                            .catch(reject)
+                        } else {
+                            reject(err);
+                        }
+                    })
+                    .finally(() => {
+                        fs.unlink(path, err => {
+                            if (err) console.error(err);
+                            else console.log('  -> thumbnail deleted');
+                        });
+                    })
                 });
-            })
+            });
         })
     }
 }

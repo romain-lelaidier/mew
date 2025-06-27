@@ -1,5 +1,6 @@
 const fs = require('fs');
 const axios = require('axios');
+const getColors = require('get-image-colors')
 
 function parseQueryString(qs) {
     var params = new URLSearchParams(qs);
@@ -187,7 +188,7 @@ class WebWrapper {
 
     thumbnail(id, url, forceDownload) {
         return new Promise((resolve, reject) => {
-            var path = `./thumbs/${id}.png`;
+            var path = `./tmp/pal_${id}.jpg`;
 
             if (!forceDownload && fs.existsSync(path)) {
                 return resolve(path);
@@ -200,14 +201,23 @@ class WebWrapper {
                 { responseType: "stream" }
             )
             .then(res => {
-                res.data.pipe(fs.createWriteStream(path))
-                res.data.on("end", () => {
+                var wstream = fs.createWriteStream(path);
+                res.data.pipe(wstream, { end: true });
+                wstream.on('close', () => {
                     resolve(path);
                 })
             })
             .catch(reject);
         })
     }
+}
+
+function colorPalette(path) {
+    return new Promise((resolve, reject) => {
+        getColors(path).then(colors => {
+            resolve(colors.map(c => { return { r: c._rgb[0], g: c._rgb[1], b: c._rgb[2] } }));
+        }).catch(reject);
+    })
 }
 
 module.exports = {
@@ -221,5 +231,6 @@ module.exports = {
     chooseFormat,
     chooseThumbnail,
     mds: ' · ',
-    WebWrapper
+    WebWrapper,
+    colorPalette,
 }
