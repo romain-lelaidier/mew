@@ -208,15 +208,20 @@ class YTMClient {
                 "https://music.youtube.com/watch?v=" + id,
                 {
                     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0" }
-                }
+                },
             )
             .then(html => {
-                var match = html.match(/\/s\/player\/([a-z0-9]{8})\/player_ias\.vflset\/([a-z]{2}_[A-Z]{2})\/base\.js/);
-                if (!match) return reject("Error downloading player: player URL not found in html");
+                var playerMatch = html.match(/\/s\/player\/([a-z0-9]{8})\/player_ias\.vflset\/([a-z]{2}_[A-Z]{2})\/base\.js/);
+                if (!playerMatch) return reject("Error downloading player: player URL not found in html");
 
-                var player = new YTPlayer(match[1], match[2]);
+                // var ytiprIndex = html.indexOf('var ytInitialPlayerResponse = {');
+                // if (ytiprIndex != -1) {
+                //     obj.ytpir = utils.extractBracketsCode(ytiprIndex + 31, html);
+                // }
+
+                var player = new YTPlayer(playerMatch[1], playerMatch[2]);
                 player.downloadAndParse(this.pdb).then(() => {
-                    resolve(player)
+                    resolve(player);
                 }).catch(reject)
             })
         })
@@ -268,7 +273,7 @@ class YTMClient {
         })
     }
 
-    getPlayerRequest(id, player, retry=true) {
+    getYtipr(id, player, retry=true) {
         // try a download. If it fails, retries after downloading ytcfg
 
         return new Promise((resolve, reject) => {
@@ -288,11 +293,12 @@ class YTMClient {
                         'X-YouTube-Client-Version': this.INNERTUBE_CLIENT_VERSION
                     }
                 }
-            ).then(resolve)
+            )
+            .then(resolve)
             .catch(err => {
                 if (retry) {
                     this.getYtcfg().then(() => {
-                        this.getPlayerRequest(id, player, false).then(resolve).catch(reject);
+                        this.getYtipr(id, player, false).then(resolve).catch(reject);
                     }).catch(reject)
                 } else {
                     reject(err);
@@ -306,13 +312,13 @@ class YTMClient {
 
         return new Promise((resolve, reject) => {
             Promise.all([
-                this.getPlayerRequest(id, player),
+                this.getYtipr(id, player),
                 this.ww.post(
                     "yti_next_single", "json",
                     "https://music.youtube.com/youtubei/v1/next?prettyPrint=false",
                     {
                         "videoId": id,
-                        "context": this.baseContext
+                        context: this.baseContext
                     },
                     { headers: this.baseHeaders }
                 )
@@ -660,7 +666,7 @@ module.exports = YTMClient;
 // const MYSQL_CONFIG = JSON.parse(fs.readFileSync("./mysql_config.json"));
 // var c = new YTMClient(MYSQL_CONFIG);
 // c.init()
-// c.getPlaylist({ id: "PL5qtVKIpPypEQnr1TN_jbpmSw33lccufV" })
+// c.EU({ id: "uQ7R58uCyVQ" })
 // .then(res => {
 //     console.log(res)
 //     // console.log(res[res.length-2])

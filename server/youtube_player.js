@@ -182,13 +182,10 @@ class YTPlayer {
         }
 
         // old school video
-        throw "Unable to decrypt format";
-        
         var url = format.url;
         var sc = utils.parseQueryString(url);
-        url = utils.replaceUrlParam(url, 'lsig', encodeURIComponent((eval(this.sfc))(sc.lsig)))
-        url = utils.replaceUrlParam(url, 'sig', encodeURIComponent((eval(this.sfc))(sc.sig)))
-        return url
+        url = utils.replaceUrlParam(url, 'n', encodeURIComponent((eval(this.nfc))(sc.n)))
+        return url;
     }
 }
 
