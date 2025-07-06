@@ -46,7 +46,7 @@ class HTMLBuilder {
     }
 
     index(params) {
-        return this.generatePage(params, "Mew", `<div class="center" id="c"><h1>Welcome to Mew</h1><h3>A minimalist YouTube Music player</h3>${this.searchBar(params)}${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}<span><a href="/web/browse">Browse Trending</a><!--${utils.mds}<a href="/web/url">Play from URL</a>--></span><br/><br/><span id="restriction">This website is strictly restricted to its contributors.<br/>Users acknowledge that using this tool may be subject to third-party terms of service, including those of YouTube. By proceeding, users accept full responsibility for their actions and any resulting consequences.</span></div>`)
+        return this.generatePage(params, "Mew", `<div class="center" id="c"><h1>Welcome to Mew</h1><h3>A minimalist YouTube Music player</h3>${this.searchBar(params)}${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}<span><a href="/web/browse">Browse Trending</a><!--${utils.mds}<a href="/web/url">Play from URL</a>--></span><br/><br/><span id="restriction">This website is strictly restricted to its contributors.<br/>Users acknowledge that using this tool may be subject to third-party terms of service, including those of YouTube. By proceeding, users accept full responsibility for their actions and any resulting consequences.</span>${params.small ? '' : `<div class="holder" id="recent"></div><script>${fs.readFileSync("./web/recent.js").toString()}</script>`}</div>`)
     }
 
     urlPage(params) {
