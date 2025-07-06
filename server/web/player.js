@@ -112,6 +112,7 @@ class Player {
         for (let i = 0; i < this.queue.length; i++) {
             this.queue[i].queueIndex = i;
         }
+        this.savePlay();
         this.i = 0;    // current index in queue
 
         this.actions = {
@@ -193,6 +194,47 @@ class Player {
             alert("Error loading audio file. Mew could not extract the stream URL.");
             history.back()
         });
+    }
+
+    savePlay() {
+        // preparing object
+        var ts = this.info || this.queue[0];
+        var obj = {};
+        for (const key of [
+            "id", "title", "artist", "album", "duration", "type", "year"
+        ]) obj[key] = ts[key];
+        obj.thumbnail = chooseThumbnailUrl(ts.thumbnails, 120);
+        obj.date = new Date();
+        if (this.isalbum) obj.type = "ALBUM";
+
+        // saving
+        const request = indexedDB.open("AudioDB", 2);
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains("recent")) {
+                db.createObjectStore("recent", { keyPath: "id" });
+            }
+        };
+
+        request.onsuccess = function(event) {
+            const db = event.target.result;
+
+            const tx = db.transaction("recent", "readwrite");
+            const store = tx.objectStore("recent");
+            store.put(obj);
+
+            tx.oncomplete = () => {
+                console.log("Result saved.");
+            };
+            tx.onerror = (e) => {
+                console.error("Error saving result :", e.target.error);
+            };
+        };
+
+        request.onerror = function(event) {
+            console.error("IndexedDB error :", event.target.errorCode);
+        };
     }
 
     loadVideo(i) {
