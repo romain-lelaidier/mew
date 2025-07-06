@@ -352,7 +352,7 @@ class Player {
             })
             r.a.innerHTML = this.isalbum
                 ? `<div class="albumIndex">${r.index}.</div><div class="info"><span><b>${r.title}</b></span>${songDetailsSpan(r)}</div>`
-                : `<img loading="lazy"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${mds}<span><i>${r.album}</i></span>${songDetailsSpan(r)}</div>`;
+                : `<img loading="lazy"/><div class="info"><span><b>${r.title}</b></span>${r.artist ? `<br><span>${r.artist}</span>${r.album ? `${mds}<span><i>${r.album}</i></span>` : ''}` : ''}${songDetailsSpan(r)}</div>`;
             if (!this.isalbum) {
                 var img = r.a.getElementsByTagName("img")[0];
                 new Thumbnail(img, r.thumbnails, false, 120)
@@ -379,7 +379,11 @@ class Player {
         );
         this.ptitle.innerText = current.title;
         this.partist.innerText = this.isalbum ? this.info.artist : current.artist;
-        this.palbum.innerText = this.isalbum ? this.info.title : current.album;
+        
+        let album = this.isalbum ? this.info.title : current.album;
+        if (album != null) this.palbum.innerText = album;
+        this.palbum.style.display = album != null ? "block" : "none";
+
         this.pslider.value = 0;
         this.pcurrenttime.textContent = durationToString(0);
         this.ptotaltime.textContent = durationToString(current.duration);

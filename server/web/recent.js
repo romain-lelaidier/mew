@@ -42,9 +42,9 @@ window.onload = () => {
         const db = event.target.result;
         const tx = db.transaction("recent", "readonly");
         const store = tx.objectStore("recent");
-    
+
         const getAllRequest = store.getAll();
-    
+
         getAllRequest.onsuccess = function() {
             const allRecent = getAllRequest.result;
             buildRecent(allRecent);
