@@ -220,6 +220,10 @@ class Player {
         request.onsuccess = function(event) {
             const db = event.target.result;
 
+            if (!db.objectStoreNames.contains("recent")) {
+                db.createObjectStore("recent", { keyPath: "id" });
+            }
+
             const tx = db.transaction("recent", "readwrite");
             const store = tx.objectStore("recent");
             store.put(obj);
