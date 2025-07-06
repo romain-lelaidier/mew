@@ -246,11 +246,11 @@ class Player {
         return new Promise((resolve, reject) => {
             try {
                 if (i < 0 || i >= this.queue.length) return resolve();
+                if (this.queue.length == 1) this.downloadQueue();
 
                 var r = this.queue[i];
                 if (r.stream) {
-                    resolve();
-                    this.downloadQueue(i);
+                    return resolve();
                 }
 
                 var downloadParams = [];
@@ -285,11 +285,10 @@ class Player {
         })
     }
     
-    downloadQueue(i) {
+    downloadQueue() {
         return new Promise((resolve, reject) => {
             try {
-                if (i < 0 || i >= this.queue.length) return resolve();
-
+                let i = this.queue.length - 1;
                 var r = this.queue[i];
                 if (!('queueId' in r)) return resolve();
 
@@ -297,6 +296,9 @@ class Player {
                 xml.open('GET', this.serverURL + '/api/queue/' + r.queueId + '/' + r.id);
                 xml.onload = () => {
                     this.queue = this.queue.concat(JSON.parse(xml.responseText));
+                    for (let j = i; j < this.queue.length; j++) {
+                        this.queue[j].queueIndex = j;
+                    }
                     this.buildQueue(i+1);
                 }
                 xml.send();
