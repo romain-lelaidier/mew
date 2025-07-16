@@ -391,29 +391,57 @@ class YTMClient {
         })
     }
 
-    getAlbum(info) {
+    getYTInitialDataFromHtml(url, name) {
         return new Promise((resolve, reject) => {
             this.ww.get(
-                "browse_album", "html",
-                'https://music.youtube.com/browse/' + info.id,
+                name, "html",
+                url,
                 {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
                     }
-                }
+                },
+                false, true
             )
             .then(html => {
-                var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
-                if (!ytJSCodeMatch) return reject('Could not find initial data in album html');
+                try {
+                    var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
+                    if (!ytJSCodeMatch) return reject('Could not find initial data in album html');
+    
+                    var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
+                    var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
+    
+                    resolve(data);
+                } catch(err) {
+                    reject(err);
+                }
+            })
+            .catch(reject)
+        })
+    }
 
-                var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
-                var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
-
+    getAlbum(info) {
+        return new Promise((resolve, reject) => {
+            this.getYTInitialDataFromHtml('https://music.youtube.com/browse/' + info.id, "browse_album")
+            .then(data => {
                 var album = this.parser.extractAlbum(data);
                 album.id = info.id;
-
                 resolve(album);
             })
+            .catch(reject)
+        })
+    }
+
+    getArtist(info) {
+        return new Promise((resolve, reject) => {
+            this.getYTInitialDataFromHtml('https://music.youtube.com/channel/' + info.id, "browse_artist")
+            .then(data => {
+                // fs.writeFileSync("./artist.json", JSON.stringify(data))
+                var artist = this.parser.extractArtist(data);
+                artist.id = info.id;
+                resolve(artist);
+            })
+            .catch(reject)
         })
     }
 
@@ -665,8 +693,7 @@ module.exports = YTMClient;
 
 // const MYSQL_CONFIG = JSON.parse(fs.readFileSync("./mysql_config.json"));
 // var c = new YTMClient(MYSQL_CONFIG);
-// c.init()
-// c.EU({ id: "uQ7R58uCyVQ" })
+// c.getArtist({ id: "UCIl91Kkscr0sc2pqg9WwYwA" })
 // .then(res => {
 //     console.log(res)
 //     // console.log(res[res.length-2])

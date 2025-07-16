@@ -112,6 +112,16 @@ function viewsToString(v) {
     return v.toString()
 }
 
+function parseViewCount(str) {
+    var viewsMatch = str.match(/(\d+,\d+|\d+)( (k|M))?/);
+    const multiplier = {
+        undefined: 1,
+        k: 1e3,
+        M: 1e6
+    }
+    return parseFloat(viewsMatch[1].replaceAll(',', '.')) * multiplier[viewsMatch[3]]
+}
+
 function chooseFormat(formats) {
     var audioSorted = formats
         .filter(fmt => fmt.mimeType.includes("audio/webm"))
@@ -144,7 +154,7 @@ class WebWrapper {
 
     stringToObj(type, data) {
         if (type == "json") return JSON.parse(data);
-        return data;
+        return data.toString();
     }
 
     request(method, name, type, url, data, options={}, save=true, load=false) {
@@ -233,4 +243,5 @@ module.exports = {
     mds: ' · ',
     WebWrapper,
     colorPalette,
+    parseViewCount
 }

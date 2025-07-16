@@ -27,13 +27,7 @@ class YTSearchParser {
             if (durationMatch) musicResult.duration = parseInt(durationMatch[1]) * 60 + parseInt(durationMatch[2]);
 
             if (run.text.includes("vues") || run.text.includes("lectures")) {
-                var viewsMatch = run.text.match(/(\d+,\d+|\d+)( (k|M))?/);
-                const multiplier = {
-                    undefined: 1,
-                    k: 1e3,
-                    M: 1e6
-                }
-                musicResult.viewCount = parseFloat(viewsMatch[1].replaceAll(',', '.')) * multiplier[viewsMatch[3]]
+                musicResult.viewCount = utils.parseViewCount(run.text);
             }
         }
     }
@@ -282,6 +276,52 @@ class YTSearchParser {
         });
 
         return album
+    }
+
+    extractArtist(data) {
+        var artist = {
+            albums: [],
+            songs: []
+        };
+
+        try {
+            let header = data.header.musicImmersiveHeaderRenderer
+
+            artist.title = header.title.runs[0].text;
+            artist.description = header.description.runs.map(run => run.text).join('\n');
+            artist.thumbnails = header.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
+
+            artist.shufflePlayPID = header.playButton.buttonRenderer.navigationEndpoint.watchEndpoint.playlistId;
+            artist.radioPlayPID = header.startRadioButton.buttonRenderer.navigationEndpoint.watchEndpoint.playlistId;
+
+            artist.viewCount = utils.parseViewCount(header.monthlyListenerCount.runs[0].text)
+        } catch(err) {}
+
+        let contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
+
+        contents.forEach(c => {
+            if ('musicShelfRenderer' in c) {
+                c.musicShelfRenderer.contents.forEach(rc => {
+                    let song = this.extractRendererInfo(rc.musicResponsiveListItemRenderer);
+                    delete song.artist;
+                    artist.songs.push(song);
+                })
+            }
+            if ('musicCarouselShelfRenderer' in c) {
+                let title = c.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text;
+                if (title == 'Albums') {
+                    c.musicCarouselShelfRenderer.contents.forEach(rc => {
+                        let album = {};
+                        album.title = rc.musicTwoRowItemRenderer.title.runs[0].text;
+                        album.id = rc.musicTwoRowItemRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId;
+                        this.parseRuns(rc.musicTwoRowItemRenderer.subtitle.runs, album)
+                        artist.albums.push(album)
+                    })
+                }
+            }
+        })
+
+        return artist;
     }
 
     parsePlaylistSongResult(renderer) {
