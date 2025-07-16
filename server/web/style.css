@@ -27,6 +27,7 @@ body {
 }
 #c {
     padding: 0 5rem;
+    padding-top: 0.5rem;
 }
 #c.playerbody {
     padding: 0 1rem;
@@ -440,4 +441,11 @@ form button {
     color: var(--c-background);
     border-radius: 20em;
     padding: 0.4em 1em;
+}
+#artistblock > div {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.6em;
+    align-items: center;
 }

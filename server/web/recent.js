@@ -35,7 +35,7 @@ function buildRecent(recents) {
     document.getElementById("recent").innerHTML = `<h3>Recently played</h3>${html}`;
 }
 
-window.onload = () => {
+window.addEventListener("load", () => {
     const request = indexedDB.open("AudioDB", 2);
     
     request.onsuccess = function(event) {
@@ -54,8 +54,8 @@ window.onload = () => {
             console.error("Error reading songs:", e.target.error);
         };
     };
-    
+
     request.onerror = function(event) {
         console.error("IndexedDB error:", event.target.errorCode);
     };
-}
+});

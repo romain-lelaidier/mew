@@ -50,7 +50,7 @@ function jres(res, obj) {
 function eres(res, err) {
     // resolves response with 500 status code and prints error
     console.error(err);
-    bres(res, 500, 'text/plain', 'Oups, server error : ' + err.toString())
+    bres(res, 500, 'text/plain', 'There was an error while handling your request...\n' + err.toString())
 }
 
 app.get('/', (req, res) => {
@@ -270,7 +270,7 @@ app.get('/web/search', (req, res) => {
         && ares(res, params.query.length >= 3, 'Query length should be at least 3')
     if (!valid) return;
 
-    c.search(params.query, ['SONG']).then(info => {
+    c.search(params.query).then(info => {
     // fs.promises.readFile("debug/search.json").then(info => {
         // info = JSON.parse(info)
         fs.writeFileSync("debug/search.json", JSON.stringify(info))

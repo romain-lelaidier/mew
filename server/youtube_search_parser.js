@@ -147,22 +147,13 @@ class YTSearchParser {
         musicResults.push(obj);
     }
 
-    extractSearchResults(data, musicResults) {
+    search(data, musicResults) {
         // Extracts search results videos from the YouTube JSON object.
         // Adds the results to the musicResults object.
         // Returns a map of the music result types to the endpoints for additional info.
 
-        var contents;
+        var contents = data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
         var endpoints = {};
-
-        try {
-            contents = data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
-        } catch(err) {
-            console.error(err);
-            return endpoints;
-        }
-        
-        if (!utils.isIterable(contents)) return endpoints;
 
         contents.forEach(shelf => {
             if ("musicCardShelfRenderer" in shelf) {
@@ -291,7 +282,9 @@ class YTSearchParser {
             artist.description = header.description.runs.map(run => run.text).join('\n');
             artist.thumbnails = header.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
 
+            artist.shufflePlaySID = header.playButton.buttonRenderer.navigationEndpoint.watchEndpoint.videoId;
             artist.shufflePlayPID = header.playButton.buttonRenderer.navigationEndpoint.watchEndpoint.playlistId;
+            artist.radioPlaySID = header.startRadioButton.buttonRenderer.navigationEndpoint.watchEndpoint.videoId;
             artist.radioPlayPID = header.startRadioButton.buttonRenderer.navigationEndpoint.watchEndpoint.playlistId;
 
             artist.viewCount = utils.parseViewCount(header.monthlyListenerCount.runs[0].text)

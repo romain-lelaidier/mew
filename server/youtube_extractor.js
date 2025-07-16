@@ -19,7 +19,7 @@ class YTMClient {
         this.baseContext = {
             "client": {
                 "hl": "fr",
-                "gl": "FR",
+                "gl": "GB",
                 "remoteHost": "88.166.99.84",
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0,gzip(gfe)",
                 "clientName": "WEB_REMIX",
@@ -146,10 +146,14 @@ class YTMClient {
                 {
                     query: query,
                     context: this.baseContext
-                }
+                },
             ).then(data => {
-                var musicResults = [];
-                var endpoints = this.parser.extractSearchResults(data, musicResults);
+                var results = [];
+                var endpoints;
+                
+                try {
+                    endpoints = this.parser.search(data, results);
+                } catch(err) { reject(err); }
 
                 // intersect endpoint types and additional list.
                 var additionalTypes = Object.keys(endpoints).filter(v => additional.includes(v));
@@ -172,9 +176,9 @@ class YTMClient {
                     for (var i = 0; i < responses.length; i++) {
                         var type = additionalTypes[i];
                         var data = responses[i];
-                        this.parser.extractAdditionalResults(data, musicResults, type);
+                        this.parser.extractAdditionalResults(data, results, type);
                     }
-                    resolve(musicResults)
+                    resolve(results)
                 }).catch(reject);
             }).catch(reject)
         })
@@ -398,7 +402,8 @@ class YTMClient {
                 url,
                 {
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0',
+                        'Cookie': 'PREF=guide_collapsed=false&gl=FR&hl=en-GB'
                     }
                 },
                 // false, true
