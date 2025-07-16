@@ -280,8 +280,7 @@ class YTSearchParser {
 
     extractArtist(data) {
         var artist = {
-            albums: [],
-            songs: []
+            results: [],
         };
 
         try {
@@ -304,18 +303,21 @@ class YTSearchParser {
                 c.musicShelfRenderer.contents.forEach(rc => {
                     let song = this.extractRendererInfo(rc.musicResponsiveListItemRenderer);
                     delete song.artist;
-                    artist.songs.push(song);
+                    artist.results.push(song);
                 })
             }
             if ('musicCarouselShelfRenderer' in c) {
                 let title = c.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text;
                 if (title == 'Albums') {
                     c.musicCarouselShelfRenderer.contents.forEach(rc => {
-                        let album = {};
+                        let album = {
+                            type: "ALBUM"
+                        };
+                        album.thumbnails = rc.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails;
                         album.title = rc.musicTwoRowItemRenderer.title.runs[0].text;
                         album.id = rc.musicTwoRowItemRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId;
                         this.parseRuns(rc.musicTwoRowItemRenderer.subtitle.runs, album)
-                        artist.albums.push(album)
+                        artist.results.push(album)
                     })
                 }
             }
