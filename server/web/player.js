@@ -379,11 +379,18 @@ class Player {
             this.isalbum ? this.info.thumbnails : current.thumbnails,
             true    // crossOrigin
         );
+        
         this.ptitle.innerText = current.title;
+        this.ptitle.href = '/web/play/' + current.id;
+
         this.partist.innerText = this.isalbum ? this.info.artist : current.artist;
+        if (current.artistId) this.partist.href = '/web/artist/' + current.artistId;
         
         let album = this.isalbum ? this.info.title : current.album;
-        if (album != null) this.palbum.innerText = album;
+        if (album != null) {
+            this.palbum.innerText = album;
+            if (current.albumId) this.palbum.href = '/web/album/' + current.albumId;
+        }
         this.palbum.style.display = album != null ? "block" : "none";
 
         this.pslider.value = 0;

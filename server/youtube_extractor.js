@@ -401,16 +401,16 @@ class YTMClient {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
                     }
                 },
-                false, true
+                // false, true
             )
             .then(html => {
                 try {
                     var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
                     if (!ytJSCodeMatch) return reject('Could not find initial data in album html');
-    
+
                     var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
                     var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
-    
+
                     resolve(data);
                 } catch(err) {
                     reject(err);
@@ -436,7 +436,7 @@ class YTMClient {
         return new Promise((resolve, reject) => {
             this.getYTInitialDataFromHtml('https://music.youtube.com/channel/' + info.id, "browse_artist")
             .then(data => {
-                // fs.writeFileSync("./artist.json", JSON.stringify(data))
+                fs.writeFileSync("./artist.json", JSON.stringify(data))
                 var artist = this.parser.extractArtist(data);
                 artist.id = info.id;
                 resolve(artist);
@@ -457,17 +457,21 @@ class YTMClient {
                 },
             )
             .then(html => {
-                var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
-                if (!ytJSCodeMatch) return reject('Could not find initial data in playlist html');
-
-                var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
-                var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
-                fs.writeFileSync('./testing/ytInitialData.json', JSON.stringify(data));
-
-                var playlist = this.parser.extractPlaylist(data);
-                playlist.id = info.id;
-
-                resolve(playlist);
+                try {
+                    var ytJSCodeMatch = html.match(/try \{(.+);ytcfg\.set/);
+                    if (!ytJSCodeMatch) return reject('Could not find initial data in playlist html');
+    
+                    var initialData = eval(`(() => {${ytJSCodeMatch[1]};return initialData;})()`);
+                    var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
+                    fs.writeFileSync('./testing/ytInitialData.json', JSON.stringify(data));
+    
+                    var playlist = this.parser.extractPlaylist(data);
+                    playlist.id = info.id;
+    
+                    resolve(playlist);
+                } catch(err) {
+                    reject(err);
+                }
             })
         })
     }

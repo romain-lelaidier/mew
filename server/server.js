@@ -274,7 +274,7 @@ app.get('/web/search', (req, res) => {
     // fs.promises.readFile("debug/search.json").then(info => {
         // info = JSON.parse(info)
         fs.writeFileSync("debug/search.json", JSON.stringify(info))
-        bres(res, 200, 'text/html', b.searchResults(params, info));
+        bres(res, 200, 'text/html', b.search(params, info));
     }).catch(err => {
         eres(res, err)
     })
@@ -374,6 +374,28 @@ app.get('/web/album/:id', (req, res) => {
         fs.writeFileSync('debug/album.json', JSON.stringify(album))
         // album = JSON.parse(album)
         bres(res, 200, 'text/html', b.album(params, album));
+    }).catch(err => {
+        eres(res, err)
+    });
+})
+
+app.get('/web/artist/:id', (req, res) => {
+    const id = req.params.id;
+    var valid = ares(res, id.match(/^[a-zA-Z0-9_-]{24}$/), 'Invalid album id')
+    if (!valid) return;
+
+    var obj = { id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    for (var [ key, value ] of Object.entries(params)) {
+        obj[key] = value;
+    }
+
+    c.getArtist(obj)
+    // fs.promises.readFile('debug/artist.json')
+    .then(artist => {
+        fs.writeFileSync('debug/artist.json', JSON.stringify(artist))
+        // artist = JSON.parse(artist)
+        bres(res, 200, 'text/html', b.artist(params, artist));
     }).catch(err => {
         eres(res, err)
     });

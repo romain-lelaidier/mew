@@ -11,6 +11,7 @@ class YTSearchParser {
                 } [ ytType ];
                 if (type) {
                     musicResult[type] = run.text;
+                    musicResult[type + "Id"] = run.navigationEndpoint.browseEndpoint.browseId
                 }
             } else if ("watchEndpoint" in run.navigationEndpoint) {
                 // AlbumSongResult
@@ -302,24 +303,26 @@ class YTSearchParser {
             if ('musicShelfRenderer' in c) {
                 c.musicShelfRenderer.contents.forEach(rc => {
                     let song = this.extractRendererInfo(rc.musicResponsiveListItemRenderer);
-                    delete song.artist;
+                    song.type = 'SONG';
+                    // delete song.artist;
                     artist.results.push(song);
                 })
             }
             if ('musicCarouselShelfRenderer' in c) {
-                let title = c.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text;
-                if (title == 'Albums') {
-                    c.musicCarouselShelfRenderer.contents.forEach(rc => {
-                        let album = {
-                            type: "ALBUM"
-                        };
-                        album.thumbnails = rc.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails;
-                        album.title = rc.musicTwoRowItemRenderer.title.runs[0].text;
-                        album.id = rc.musicTwoRowItemRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId;
-                        this.parseRuns(rc.musicTwoRowItemRenderer.subtitle.runs, album)
-                        artist.results.push(album)
-                    })
-                }
+                c.musicCarouselShelfRenderer.contents.forEach(rc => {
+                    try {
+                        if (rc.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType == "MUSIC_PAGE_TYPE_ALBUM" && rc.musicTwoRowItemRenderer.subtitle.runs.length == 1) {
+                            let album = {
+                                type: "ALBUM"
+                            };
+                            album.thumbnails = rc.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails;
+                            album.title = rc.musicTwoRowItemRenderer.title.runs[0].text;
+                            album.id = rc.musicTwoRowItemRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId;
+                            this.parseRuns(rc.musicTwoRowItemRenderer.subtitle.runs, album)
+                            artist.results.push(album)
+                        }
+                    } catch(err) {}
+                })
             }
         })
 

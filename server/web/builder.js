@@ -85,7 +85,7 @@ class HTMLBuilder {
         if (r.type == "ALBUM") {
             return params.small
                 ? `<div><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/album/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
-                : `<div><a href="/web/album/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span></div></a></div>`
+                : `<div><a href="/web/album/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br/><span style="opacity: .7">${r.year}</span></div></a></div>`
         }
 
         if (r.type == "PLAYLIST") {
@@ -95,42 +95,49 @@ class HTMLBuilder {
         }
 
         if (r.type == "ARTIST") {
-            return `<div class="${classStr}">
+            return `<div class="${classStr}"><a href="/web/artist/${r.id}">
                 <img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
-                <div class="info"><a><span><b>${r.title}</b></span></a></div></div>`
+                <div class="info"><a><span><b>${r.title}</b></span></a></div></a></div>`
         }
     }
 
     searchResults(params, results) {
-        var rbhtml;
-        if (params.small) {
-            rbhtml = results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
-        } else {
-            rbhtml = '';
-            let typehtml = '';
-            let previousType = results[0].type;
-            let pushHTML = (last = false) => {
-                var names = {
-                    SONG: "Songs",
-                    VIDEO: "Videos",
-                    ALBUM: "Albums",
-                    ARTIST: "Artists",
-                    PLAYLIST: "Playlists"
-                }
-                rbhtml += ['ALBUM', 'ARTIST', 'PLAYLIST'].includes(previousType)
-                    ? `<div class="slider">${typehtml}</div>` 
-                    : typehtml;
-                if (!last) rbhtml += `<h3>${names[r.type]}</h3>`;
-                previousType = r.type;
-                typehtml = '';
+        if (params.small) return results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
+        let rbhtml = '';
+        let typehtml = '';
+        let previousType = null;
+        let pushHTML = (last = false) => {
+            var names = {
+                SONG: "Songs",
+                VIDEO: "Videos",
+                ALBUM: "Albums",
+                ARTIST: "Artists",
+                PLAYLIST: "Playlists"
             }
-            for (var r of results.slice(0, 20)) {
-                if (r.type != previousType) pushHTML();
-                typehtml += this.generateResultDiv(params, r)
-            }
-            pushHTML(true);
+            rbhtml += ['ALBUM', 'ARTIST', 'PLAYLIST'].includes(previousType)
+                ? `<div class="slider">${typehtml}</div>` 
+                : typehtml;
+            if (!last) rbhtml += `<h3>${names[r.type]}</h3>`;
+            previousType = r.type;
+            typehtml = '';
         }
-        var html = `<div id="c">${this.searchBar(params, params.query)}<div class="holder">${rbhtml}</div></div>`
+        for (var r of results.slice(0, 20)) {
+            if (r.type != previousType) pushHTML();
+            typehtml += this.generateResultDiv(params, r)
+        }
+        pushHTML(true);
+        return rbhtml;
+    }
+
+    search(params, results) {
+        var html = `<div id="c">${this.searchBar(params, params.query)}<div class="holder">${this.searchResults(params, results)}</div></div>`
+        return this.generatePage(params, "Mew - Search", html)
+    }
+
+    artist(params, artist) {
+        let listeners = artist.viewCount ? `<p>${utils.viewsToString(artist.viewCount)} monthly listeners</p>` : ''
+        let description = artist.description ? `<h2>About</h2>${artist.description.split('\n').map(t => `<p>${t}</p>`).join('')}` : '';
+        var html = `<div id="c">${this.searchBar(params, artist.title)}<div class="holder"><h1>${artist.title}</h1>${listeners}<a class="artistbtn" href="/web/playlist/${artist.shufflePlayPID}"><i class="fa-solid fa-shuffle"></i> Shuffle</a><a class="artistbtn" href="/web/playlist/${artist.radioPlayPID}"><i class="fa-solid fa-radio"></i> Radio</a>${this.searchResults(params, artist.results)}</div>${description}</div>`
         return this.generatePage(params, "Mew - Search", html)
     }
 
@@ -169,7 +176,7 @@ class HTMLBuilder {
     }
 
     player(params, result, type=null) {
-        var infoBlock = `<div id="pimgcontainer"><img crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><span class="title" id="ptitle"></span><span class="artist" id="partist"></span><span class="album" id="palbum"></span></div>`;
+        var infoBlock = `<div id="pimgcontainer"><img crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><a class="title" id="ptitle" target="_blank"></a><a class="artist" id="partist" target="_blank"></a><a class="album" id="palbum" target="_blank"></a></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
             <audio controls autoplay id="paudio" src="" type="audio/webm"></audio>

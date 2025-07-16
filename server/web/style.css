@@ -261,9 +261,10 @@ form button {
 #player audio {
     display: none;
 }
-#pplayerinfo span {
+#pplayerinfo * {
     display: block;
     text-align: center;
+    text-decoration: none;
 }
 #pplayerinfo .title {
     font-size: 1.5rem;
@@ -431,4 +432,12 @@ form button {
     display: block;
     font-weight: bold;
     max-width: 40rem;
+}
+.artistbtn {
+    display: inline-block;
+    width: fit-content;
+    background: var(--c-front);
+    color: var(--c-background);
+    border-radius: 20em;
+    padding: 0.4em 1em;
 }
