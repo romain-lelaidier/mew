@@ -131,6 +131,7 @@ function chooseFormat(formats) {
 }
 
 function chooseThumbnail(thumbnails, width=Infinity) {
+    if (!isIterable(thumbnails)) return {}
     var sorted = thumbnails
         .sort((thb1, thb2) => thb2.width - thb1.width);
     var filtered = sorted.filter(thb => thb.width <= width)

@@ -64,8 +64,8 @@ class HTMLBuilder {
             : `<span>State: ${formatProgress(r.progress)}</span>`;
 
         return params.small 
-            ? `<div class="song"><img src="${r.smallThumb}"/><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span><br>${state}</div>`
-            : `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
+            ? `<div class="song"><img loading="lazy" src="${r.smallThumb}"/><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span><br>${state}</div>`
+            : `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img loading="lazy" src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
     }
 
     urlPage(params) {
@@ -106,8 +106,8 @@ class HTMLBuilder {
             ], '<br>');
 
             return params.small 
-                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
+                ? `<div class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
+                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
         }
 
         if (r.type == "VIDEO") {
@@ -118,8 +118,8 @@ class HTMLBuilder {
             ], '<br>');
 
             return params.small 
-                ? `<div class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
+                ? `<div class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
+                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
         }
 
         if (r.type == "ALBUM") {
@@ -132,19 +132,19 @@ class HTMLBuilder {
             ], '<br>');
 
             return params.small
-                ? `<div><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/album/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
-                : `<div><a href="/web/album/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a></div>`
+                ? `<div><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/album/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
+                : `<div><a href="/web/album/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a></div>`
         }
 
         if (r.type == "PLAYLIST") {
             return params.small
-                ? `<div><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/playlist/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
-                : `<div><a href="/web/playlist/${r.id}" class="${classStr}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${'subtitle' in r ? `<br/><span><i>${r.subtitle}</i></span>` : ''}</div></a></div>`
+                ? `<div><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/playlist/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
+                : `<div><a href="/web/playlist/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${'subtitle' in r ? `<br/><span><i>${r.subtitle}</i></span>` : ''}</div></a></div>`
         }
 
         if (r.type == "ARTIST") {
             return `<div class="${classStr}"><a href="/web/artist/${r.id}">
-                <img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
+                <img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><br>
                 <div class="info"><a><span><b>${r.title}</b></span></a></div></a></div>`
         }
     }
@@ -185,7 +185,9 @@ class HTMLBuilder {
     artist(params, artist) {
         let listeners = artist.viewCount ? `<span>${utils.viewsToString(artist.viewCount)} monthly listeners</span>` : ''
         let description = artist.description ? `<h2>About</h2>${artist.description.split('\n').map(t => `<p>${t}</p>`).join('')}` : '';
-        var html = `<div id="c">${this.generateSearchBar(params, artist.title)}<div class="holder"><div id="artistblock"><h1>${artist.title}</h1><div><a class="artistbtn" href="/web/play/${artist.shufflePlaySID}?queueId=${artist.shufflePlayPID}"><i class="fa-solid fa-shuffle"></i> Shuffle</a><a class="artistbtn" href="/web/play/${artist.radioPlaySID}?queueId=${artist.radioPlayPID}"><i class="fa-solid fa-radio"></i> Radio</a>${listeners}</div></div>${this.searchResults(params, artist.results)}</div>${description}</div>`
+        let artistblock = `<img loading="lazy" src="${utils.chooseThumbnail(artist.thumbnails, 200).url || ''}"><div id="artistinfo"><h1>${artist.title}</h1><div id="artistbuttons"><a class="artistbtn" href="/web/play/${artist.shufflePlaySID}?queueId=${artist.shufflePlayPID}"><i class="fa-solid fa-shuffle"></i> Shuffle</a><a class="artistbtn" href="/web/play/${artist.radioPlaySID}?queueId=${artist.radioPlayPID}"><i class="fa-solid fa-radio"></i> Radio</a>${listeners}</div></div>`;
+
+        var html = `<div id="c">${this.generateSearchBar(params, artist.title)}<div class="holder"><div id="artistblock">${artistblock}</div>${this.searchResults(params, artist.results)}${description}</div></div>`
         return this.generatePage(params, "Mew - Search", html)
     }
 
@@ -214,12 +216,12 @@ class HTMLBuilder {
         var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
         return params.small 
-            ? `<div class="song"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-            : `<a class="song" href="/web/play/${r.id}${downloadParams}"><img src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
+            ? `<div class="song"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
+            : `<a class="song" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
     }
 
     player(params, result, type=null) {
-        var infoBlock = `<div id="pimgcontainer"><img crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><a class="title" id="ptitle" target="_blank"></a><a class="artist" id="partist" target="_blank"></a><a class="album" id="palbum" target="_blank"></a></div>`;
+        var infoBlock = `<div id="pimgcontainer"><img loading="lazy" crossorigin="anonymous" src="" id="pimg"/></div><div id="pplayerinfo"><a class="title" id="ptitle" target="_blank"></a><a class="artist" id="partist" target="_blank"></a><a class="album" id="palbum" target="_blank"></a></div>`;
         var audioPlayer = `<div id="playerControls">
         <div id="audioPlayer">
             <audio controls autoplay id="paudio" src="" type="audio/webm"></audio>
@@ -264,13 +266,13 @@ class HTMLBuilder {
     }
 
     album(params, album) {
-        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
+        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img loading="lazy" src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
 
         return this.player(params, album, "ALBUM");
     }
 
     playlist(params, playlist) {
-        if (params.small) return this.generatePage(params, "Mew - Playlist", `<div style="display:flex;gap:1rem;"><div><span><b><i>${playlist.title}</i></b></span><br><span><b>${playlist.subtitle}</b></span><br><img src="${utils.chooseThumbnail(playlist.thumbnails, 120).url}"/></div><div class="playlistSongs">${playlist.songs.map(song => this.generateAlbumSongDiv(playlist, song)).join('<br>')}</div></div>`);
+        if (params.small) return this.generatePage(params, "Mew - Playlist", `<div style="display:flex;gap:1rem;"><div><span><b><i>${playlist.title}</i></b></span><br><span><b>${playlist.subtitle}</b></span><br><img loading="lazy" src="${utils.chooseThumbnail(playlist.thumbnails, 120).url}"/></div><div class="playlistSongs">${playlist.songs.map(song => this.generateAlbumSongDiv(playlist, song)).join('<br>')}</div></div>`);
 
         return this.player(params, playlist, "PLAYLIST");
     }

@@ -434,6 +434,27 @@ form button {
     font-weight: bold;
     max-width: 40rem;
 }
+#artistblock {
+    position: relative;
+    display: block;
+    min-width: 100%;
+    min-height: 7em;
+}
+#artistinfo {
+    /* position: absolute;
+    bottom: 0;
+    padding: 1em;
+    padding-top: 3em;
+    background: linear-gradient(#fff0, var(--c-background));
+    width: 100%; */
+}
+#artistbuttons {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.6em;
+    align-items: center;
+}
 .artistbtn {
     display: inline-block;
     width: fit-content;
@@ -441,11 +462,4 @@ form button {
     color: var(--c-background);
     border-radius: 20em;
     padding: 0.4em 1em;
-}
-#artistblock > div {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.6em;
-    align-items: center;
 }
