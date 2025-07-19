@@ -1,0 +1,1 @@
+npm install express axios get-image-colors mysql2 regexp.escape

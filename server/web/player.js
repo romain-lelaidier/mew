@@ -385,7 +385,7 @@ class Player {
 
         this.partist.innerText = this.isalbum ? this.info.artist : current.artist;
         if (current.artistId) this.partist.href = '/web/artist/' + current.artistId;
-        else if (this.info.artistId) this.partist.href = '/web/artist/' + this.info.artistId;
+        else if (this.info && this.info.artistId) this.partist.href = '/web/artist/' + this.info.artistId;
         
         let album = this.isalbum ? this.info.title : current.album;
         if (album != null) {
