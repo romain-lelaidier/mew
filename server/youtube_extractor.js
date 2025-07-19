@@ -289,8 +289,6 @@ class YTMClient {
                     "context": this.generateContext(),
                     "videoId": id,
                     "playbackContext": {"contentPlaybackContext": {"html5Preference": "HTML5_PREF_WANTS", "signatureTimestamp": player.sts}}, 
-                    "contentCheckOk": true, 
-                    "racyCheckOk": true
                 },
                 {
                     headers: {

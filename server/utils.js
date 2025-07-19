@@ -141,6 +141,11 @@ function chooseThumbnail(thumbnails, width=Infinity) {
 
 function formatBytes(a,b=2){if(!+a)return"0 Bytes";const c=0>b?0:b,d=Math.floor(Math.log(a)/Math.log(1024));return`${parseFloat((a/Math.pow(1024,d)).toFixed(c))} ${["Bytes","KiB","MiB","GiB","TiB","PiB","EiB","ZiB","YiB"][d]}`}
 
+function fillstr(str, length, c = ' ') {
+    if (str.length < length) return fillstr(str + c, length, c);
+    return str;
+}
+
 class WebWrapper {
     // simplifies methods for scraping from web / save (for debug mode)
 
@@ -180,7 +185,7 @@ class WebWrapper {
                 var size = res.headers['content-length']
                     ? parseInt(res.headers['content-length'])
                     : (type == 'json' ? JSON.stringify(res.data) : res.data).length;
-                console.log(`  ${method} ${name} -> ${formatBytes(size)}`);
+                console.log(`  ${fillstr(method, 4)} ${res.status} [ ${fillstr(formatBytes(size), 11)} ] ${name}`);
 
                 if (save) fs.writeFileSync(path, this.objToString(type, res.data))
 
