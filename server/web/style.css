@@ -435,10 +435,10 @@ form button {
     max-width: 40rem;
 }
 #artistblock {
-    position: relative;
+    /* position: relative;
     display: block;
     min-width: 100%;
-    min-height: 7em;
+    min-height: 7em; */
 }
 #artistinfo {
     /* position: absolute;

@@ -1,6 +1,6 @@
 const fs = require('fs')
 const cp = require('child_process');
-const mysql = require('mysql2/promise');
+const pg = require('pg');
 
 const PlayerDB = require('./player_db');
 const DownloadsDB = require('./downloads_db');
@@ -8,7 +8,6 @@ const YTSearchParser = require('./youtube_search_parser')
 const YTPlayer = require('./youtube_player')
 const utils = require('./utils');
 const PaletteDB = require('./palette_db');
-// const ColorThief = require('colorthief');
 
 class YTMClient {
     constructor(dbConfig) {
@@ -44,7 +43,8 @@ class YTMClient {
     async init() {
         // Initializes the database and creates the necessary folders.
 
-        this.mysqlConnection = await mysql.createConnection(this.dbConfig);
+        this.mysqlConnection = new pg.Client(this.dbConfig);
+        await this.mysqlConnection.connect();
         this.pdb = new PlayerDB(this.mysqlConnection);
         this.ddb = new DownloadsDB(this.mysqlConnection);
         this.paletteDB = new PaletteDB(this.mysqlConnection);
@@ -57,7 +57,8 @@ class YTMClient {
             "streams",
             "tmp",
             "debug",
-            "testing"
+            "testing",
+            "thumbs"
         ]) {
             if (!fs.existsSync(folder)) {
                 fs.mkdirSync(folder)

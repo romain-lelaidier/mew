@@ -1,6 +1,15 @@
 const fs = require('fs');
 
-var utils = require('./../utils')
+var utils = require('./../utils');
+
+const agg = (elements, separator) => elements.map(element => {
+    if (!element) return null;
+    if (typeof(element) == 'string') return element;
+    let [balise, content, attributes={}] = element;
+    if (!content) return null;
+    let attributesStr = Object.entries(attributes).map(([key, val]) => ` ${key}="${val}"`).join('');
+    return `<${balise}${attributesStr}>${content}</${balise}>`
+}).filter(str => str != null).join(separator)
 
 class HTMLBuilder {
     constructor() {
@@ -84,15 +93,6 @@ class HTMLBuilder {
         var classNames = [ r.type.toLowerCase() ];
         if (r.top) classNames.push('top');
         var classStr = classNames.join(' ');
-
-        const agg = (elements, separator) => elements.map(element => {
-            if (!element) return null;
-            if (typeof(element) == 'string') return element;
-            let [balise, content, attributes={}] = element;
-            if (!content) return null;
-            let attributesStr = Object.entries(attributes).map(([key, val]) => ` ${key}="${val}"`).join('');
-            return `<${balise}${attributesStr}>${content}</${balise}>`
-        }).filter(str => str != null).join(separator)
 
         if (r.type == "SONG") {
             var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
@@ -185,7 +185,10 @@ class HTMLBuilder {
     artist(params, artist) {
         let listeners = artist.viewCount ? `<span>${utils.viewsToString(artist.viewCount)} monthly listeners</span>` : ''
         let description = artist.description ? `<h2>About</h2>${artist.description.split('\n').map(t => `<p>${t}</p>`).join('')}` : '';
-        let artistblock = `<img loading="lazy" src="${utils.chooseThumbnail(artist.thumbnails, 200).url || ''}"><div id="artistinfo"><h1>${artist.title}</h1><div id="artistbuttons"><a class="artistbtn" href="/web/play/${artist.shufflePlaySID}?queueId=${artist.shufflePlayPID}"><i class="fa-solid fa-shuffle"></i> Shuffle</a><a class="artistbtn" href="/web/play/${artist.radioPlaySID}?queueId=${artist.radioPlayPID}"><i class="fa-solid fa-radio"></i> Radio</a>${listeners}</div></div>`;
+        let artistbuttons =
+            (artist.shufflePlaySID ? `<a class="artistbtn" href="/web/play/${artist.shufflePlaySID}?queueId=${artist.shufflePlayPID}"><i class="fa-solid fa-shuffle"></i> Shuffle</a>` : '') +
+            (artist.radioPlaySID ? `<a class="artistbtn" href="/web/play/${artist.radioPlaySID}?queueId=${artist.radioPlayPID}"><i class="fa-solid fa-radio"></i> Radio</a>` : '');
+        let artistblock = `<img loading="lazy" src="${utils.chooseThumbnail(artist.thumbnails, 200).url || ''}"><div id="artistinfo"><h1>${artist.title}</h1><div id="artistbuttons">${artistbuttons}${listeners}</div></div>`;
 
         var html = `<div id="c">${this.generateSearchBar(params, artist.title)}<div class="holder"><div id="artistblock">${artistblock}</div>${this.searchResults(params, artist.results)}${description}</div></div>`
         return this.generatePage(params, "Mew - Search", html)

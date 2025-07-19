@@ -8,8 +8,8 @@ const utils = require('./utils')
 const YTMClient = require('./youtube_extractor')
 const HTMLBuilder = require('./web/builder')
 
-const MYSQL_CONFIG = JSON.parse(fs.existsSync("./mysql_config.json")
-    ? fs.readFileSync("./mysql_config.json")
+const MYSQL_CONFIG = JSON.parse(fs.existsSync("./pg_config.json")
+    ? fs.readFileSync("./pg_config.json")
     : process.env.MYSQL_CONFIG);
 
 // HTTPS credentials
