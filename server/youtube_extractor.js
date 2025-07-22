@@ -327,7 +327,6 @@ class YTMClient {
                 )
             ])
             .then(data => {
-                console.log(JSON.stringify(data[0]), id, this.INNERTUBE_CLIENT_VERSION)
                 var info = {
                     id: data[0].videoDetails.videoId,
                     title: data[0].videoDetails.title,

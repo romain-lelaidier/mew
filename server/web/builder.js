@@ -28,9 +28,7 @@ class HTMLBuilder {
     }
 
     generatePage(params, title, html, scrollable=true) {
-        let fullHtml = params.small 
-            ? `<!DOCTYPE html><html><head><title>${title}</title><meta charset="utf-8"/><link rel="stylesheet" href="/web/css?small=true"/></head><body>${html}</body></html>`
-            : `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="/web/css"/><link rel="icon" type="image/x-icon" href="/web/favicon.ico"></head><body><div id="b" ${scrollable ? `class="scrollable"` : ""}>${html}</div><script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script><footer><span><a href="/web">Home</a></span><span><a href="https://github.com/romain-lelaidier/mew" target="_blank">GitHub</a></span><span>MIT License · 2025</span><span><a href="mailto:romain.lelaidier@etu.minesparis.psl.eu">Contact</a></span><span><a href="/web/legal">Legal</a></span></footer><script>${this.resizeJS}</script></body></html>`;
+        let fullHtml = `<!DOCTYPE html><html><head><title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="utf-8"/><link rel="stylesheet" href="/web/css"/><link rel="icon" type="image/x-icon" href="/web/favicon.ico"></head><body><div id="b" ${scrollable ? `class="scrollable"` : ""}>${html}</div><script src="https://kit.fontawesome.com/670ffa8591.js" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script><footer><span><a href="/web">Home</a></span><span><a href="https://github.com/romain-lelaidier/mew" target="_blank">GitHub</a></span><span>MIT License · 2025</span><span><a href="mailto:romain.lelaidier@etu.minesparis.psl.eu">Contact</a></span><span><a href="/web/legal">Legal</a></span></footer><script>${this.resizeJS}</script></body></html>`;
 
         if (!params.baseURL) return fullHtml;
         return fullHtml
@@ -39,8 +37,7 @@ class HTMLBuilder {
     }
 
     generateSearchBar(params, defaultText='') {
-        var deviceInput = params.small ? `<input type="hidden" name="small" value="true">` : '';
-        return `<form action="/web/search">${deviceInput}<input type="text" name="query" value="${defaultText}" placeholder="Search"><button type="submit"><div class="fa-solid fa-magnifying-glass"></div></button></form>`
+        return `<form action="/web/search"><input type="text" name="query" value="${defaultText}" placeholder="Search"><button type="submit"><div class="fa-solid fa-magnifying-glass"></div></button></form>`
     }
 
     index(params) {
@@ -51,11 +48,10 @@ class HTMLBuilder {
                 <h1>Welcome to Mew</h1>
                 <h3>A minimalist YouTube Music player</h3>
                 ${this.generateSearchBar(params)}
-                ${params.small ? `<a href="/web/down">Downloaded Songs</a>` : ''}
                 <span><a href="/web/browse">Browse Trending</a><!--${utils.mds}<a href="/web/url">Play from URL</a>--></span>
                 <br/><br/>
                 <span id="restriction">This website is strictly restricted to its contributors.<br/>Users acknowledge that using this tool may be subject to third-party terms of service, including those of YouTube. By proceeding, users accept full responsibility for their actions and any resulting consequences.</span>
-                ${params.small ? '' : `<div class="holder" id="recent"></div><script>${this.recentJS}</script>`}
+                <div class="holder" id="recent"></div><script>${this.recentJS}</script>
             </div>`
         )
     }
@@ -72,9 +68,7 @@ class HTMLBuilder {
             ? `<a href="/web/download/${r.id}">Download MP3</a>`
             : `<span>State: ${formatProgress(r.progress)}</span>`;
 
-        return params.small 
-            ? `<div class="song"><img loading="lazy" src="${r.smallThumb}"/><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span><br>${state}</div>`
-            : `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img loading="lazy" src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
+        return `<a class="song" ${r.progress == 2000 ? `href="/web/download/${r.id}"` : ""}><img loading="lazy" src="${r.smallThumb}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${r.progress == 2000 ? '' : state}</div></a>`
     }
 
     urlPage(params) {
@@ -105,9 +99,7 @@ class HTMLBuilder {
                 this.songDetailsSpan(r)
             ], '<br>');
 
-            return params.small 
-                ? `<div class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
+            return `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
         }
 
         if (r.type == "VIDEO") {
@@ -117,9 +109,7 @@ class HTMLBuilder {
                 this.songDetailsSpan(r)
             ], '<br>');
 
-            return params.small 
-                ? `<div class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span>${this.songDetailsSpan(r)}</a></div>`
-                : `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
+            return `<a class="${classStr}" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" class="thumbnail" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a>`
         }
 
         if (r.type == "ALBUM") {
@@ -131,15 +121,11 @@ class HTMLBuilder {
                 ], utils.mds)
             ], '<br>');
 
-            return params.small
-                ? `<div><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/album/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
-                : `<div><a href="/web/album/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a></div>`
+            return `<div><a href="/web/album/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info">${htmlInfo}</div></a></div>`
         }
 
         if (r.type == "PLAYLIST") {
-            return params.small
-                ? `<div><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/playlist/${r.id}" class="${classStr}"><span><b>${r.title}</b></span></a></div>`
-                : `<div><a href="/web/playlist/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${'subtitle' in r ? `<br/><span><i>${r.subtitle}</i></span>` : ''}</div></a></div>`
+            return `<div><a href="/web/playlist/${r.id}" class="${classStr}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span>${'subtitle' in r ? `<br/><span><i>${r.subtitle}</i></span>` : ''}</div></a></div>`
         }
 
         if (r.type == "ARTIST") {
@@ -150,7 +136,6 @@ class HTMLBuilder {
     }
 
     searchResults(params, results) {
-        if (params.small) return results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
         let rbhtml = '';
         let typehtml = '';
         let previousType = null;
@@ -218,9 +203,7 @@ class HTMLBuilder {
     generateQueueResultDiv(params, r) {
         var downloadParams = 'queueId' in r ? `?queueId=${encodeURIComponent(r.queueId)}` : '';
 
-        return params.small 
-            ? `<div class="song"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><a href="/web/eudc/${r.id}${downloadParams}"><span><b>${r.title}</b></span><br><span>${r.artist}</span><br><span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</a></div>`
-            : `<a class="song" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
+        return `<a class="song" href="/web/play/${r.id}${downloadParams}"><img loading="lazy" src="${utils.chooseThumbnail(r.thumbnails, 120).url}"/><div class="info"><span><b>${r.title}</b></span><br><span>${r.artist}</span>${utils.mds}<span><i>${r.album}</i></span>${this.songDetailsSpan(r)}</div></a>`
     }
 
     player(params, result, type=null) {
@@ -269,19 +252,14 @@ class HTMLBuilder {
     }
 
     album(params, album) {
-        if (params.small) return this.generatePage(params, "Mew - Album", `<div style="display:flex;gap:1rem;"><div><span><b><i>${album.title}</i></b></span><br><span><b>${album.artist}</b></span><br><span>${album.year}</span><br><img loading="lazy" src="${utils.chooseThumbnail(album.thumbnails, 120).url}"/></div><div class="albumSongs">${album.songs.map(song => this.generateAlbumSongDiv(album, song)).join('<br>')}</div></div>`);
-
         return this.player(params, album, "ALBUM");
     }
 
     playlist(params, playlist) {
-        if (params.small) return this.generatePage(params, "Mew - Playlist", `<div style="display:flex;gap:1rem;"><div><span><b><i>${playlist.title}</i></b></span><br><span><b>${playlist.subtitle}</b></span><br><img loading="lazy" src="${utils.chooseThumbnail(playlist.thumbnails, 120).url}"/></div><div class="playlistSongs">${playlist.songs.map(song => this.generateAlbumSongDiv(playlist, song)).join('<br>')}</div></div>`);
-
         return this.player(params, playlist, "PLAYLIST");
     }
 
     browse(params, results) {
-        var rbhtml;
         var priorities = [
             'Charts',
             'Hits',
@@ -308,18 +286,14 @@ class HTMLBuilder {
             if (i == 0) return Math.sign(tb - ta);
             return i;
         });
-        if (params.small) {
-            rbhtml = results.slice(0, 4).map(r => this.generateResultDiv(params, r)).join('');
-        } else {
-            rbhtml = '';
-            for (var r of results) {
-                var type = r.items[0].type;
-                var typehtml = '';
-                for (var item of r.items) {
-                    typehtml += this.generateResultDiv(params, item)
-                }
-                rbhtml += `<h3>${r.title}</h3>${['ARTIST','ALBUM','PLAYLIST'].includes(type) ? `<div class="slider">${typehtml}</div>` : typehtml}`;
+        var rbhtml = '';
+        for (var r of results) {
+            var type = r.items[0].type;
+            var typehtml = '';
+            for (var item of r.items) {
+                typehtml += this.generateResultDiv(params, item)
             }
+            rbhtml += `<h3>${r.title}</h3>${['ARTIST','ALBUM','PLAYLIST'].includes(type) ? `<div class="slider">${typehtml}</div>` : typehtml}`;
         }
         var html = `<div id="c">${this.generateSearchBar(params, params.query)}<div class="holder">${rbhtml}</div></div>`
         return this.generatePage(params, "Mew - Browse", html)

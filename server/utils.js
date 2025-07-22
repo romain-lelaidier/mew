@@ -163,11 +163,11 @@ class WebWrapper {
         return data.toString();
     }
 
-    request(method, name, type, url, data, options={}, save=true, load=false) {
+    request(method, name, type, url, data, options={}) {
         return new Promise((resolve, reject) => {
 
             var path = this.path(name, type);
-            if (load && fs.existsSync(path)) {
+            if (options.load && fs.existsSync(path)) {
                 resolve(this.stringToObj(type, fs.readFileSync(path)));
                 return;
             }
@@ -187,19 +187,19 @@ class WebWrapper {
                     : (type == 'json' ? JSON.stringify(res.data) : res.data).length;
                 console.log(`  ${fillstr(method, 4)} ${res.status} [ ${fillstr(formatBytes(size), 11)} ] ${name}`);
 
-                if (save) fs.writeFileSync(path, this.objToString(type, res.data))
+                if (options.save) fs.writeFileSync(path, this.objToString(type, res.data))
 
                 resolve(res.data);
             }).catch(reject);
         })
     }
 
-    get(name, type, url, options={}, save=true, load=false) {
-        return this.request('GET', name, type, url, null, options, save, load);
+    get(name, type, url, options={}) {
+        return this.request('GET', name, type, url, null, options);
     }
 
-    post(name, type, url, data, options={}, save=true, load=false) {
-        return this.request('POST', name, type, url, data, options, save, load);
+    post(name, type, url, data, options={}) {
+        return this.request('POST', name, type, url, data, options);
     }
 
     thumbnail(id, url, forceDownload) {
