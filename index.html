@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <style>
+      @import "tailwindcss";
+      @theme {
+        --color-d: oklch(78.5% 0.115 274.713);
+        --color-b: rgb(0, 0, 0);
+        --breakpoint-ls: 50rem;
+      }
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+
+      /* Slider */
+      #pslider {
+        -webkit-appearance: none;
+        appearance: none; 
+        width: 100%;
+        cursor: pointer;
+        outline: none;
+      }
+      #pslider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 0.5rem;
+        width:  0.5rem;
+        background-color: var(--color-b);
+        border-radius: 50%;
+        border: none;
+        transition: .2s ease-in-out;
+      }
+      #pslider::-moz-range-thumb {
+        height: 0.5rem;
+        width:  0.5rem;
+        background-color: var(--color-b);
+        border-radius: 50%;
+        border: none;
+        transition: .2s ease-in-out;
+      }
+      #pslider:hover::-webkit-slider-thumb:hover {
+        height: 0.8rem;
+        width:  0.8rem;
+      }
+      #pslider:active::-webkit-slider-thumb {
+        box-shadow: 0 0 0 0.6rem rgba(0,0,0,.2)
+      }
+
+      #pslider:hover::-moz-range-thumb {
+        height: 0.8rem;
+        width:  0.8rem;
+      }
+      #pslider:active::-moz-range-thumb {
+        box-shadow: 0 0 0 0.6rem rgba(0,0,0,.2)
+      }
+    </style>
+  </head>
+  <body class="font-[Cabin] bg-d">
+    <div id="app" class="flex flex-col h-screen"></div>
+    <script src="./web/main.jsx" type="module"></script>
+    <script>
+      window.addEventListener("popstate", function(e) {
+        window.location.href = location.href;
+      });
+    </script>
+  </body>
+</html>
