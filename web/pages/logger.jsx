@@ -164,7 +164,6 @@ export function Settings(props) {
     e.preventDefault();
     uChangePassword(pwcPassword(), pwcNewPassword()).then(() => {
       alert("Your password was succesfully changed.");
-      navigate('/');
     }).catch(setPwcError);
   }
 

@@ -133,8 +133,6 @@ export function addUMFunctions(app, db) {
       if (!user) throw new Error("This user does not exist.");
       if (!user.verified) throw new Error("Your account is not verified. Please check your inbox before logging in.");
 
-      console.log(user, password);
-
       if (!comparePasswords(user, password)) throw new Error("Incorrect password.");
 
       const token = await generateJWT(user.id);
@@ -196,7 +194,7 @@ export function addUMFunctions(app, db) {
 
       await db.collection("users").updateOne(
         { id: { $eq: req.user.id } },
-        { $set: { password: newpassword } }
+        { $set: { hash: bcrypt.hashSync(newpassword) } }
       );
       res.status(200).json({ message: "Password succesfully updated." });
     } catch (error) {
