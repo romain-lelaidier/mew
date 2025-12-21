@@ -115,7 +115,6 @@ export const uChangePassword = async (password, newpassword) => {
   });
   const json = await res.json();
   if (!is2xx(res)) throw json.error;
-  uLogOut();
   return true;
 }
 
