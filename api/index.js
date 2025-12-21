@@ -1,8 +1,6 @@
 import express from "express";
 import { rateLimit } from 'express-rate-limit';
-import jsonwebtoken from "jsonwebtoken";
 import { MongoClient } from 'mongodb';
-import { env } from "process";
 import * as fs from "fs";
 
 import * as utils from "./utils.js"
@@ -15,7 +13,7 @@ import { addUMFunctions } from "./um/um.js";
 const getip = (req) => req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
 // ----- database connection -----
-const mongod_client = new MongoClient(env.MONGODB_URI);
+const mongod_client = new MongoClient(process.env.MONGODB_URI);
 await mongod_client.connect();
 const db = mongod_client.db("mew");
 

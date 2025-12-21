@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
-import { env } from "process";
-import { transporter } from "../mail/mail";
+import { transporter } from "../mail/mail.js";
 
 function generateId(len=32) {
   let uid = '';
@@ -13,7 +12,7 @@ function generateId(len=32) {
 }
 
 async function sendVerificationEmail(email, id, verificationToken) {
-  const url = `${env.LOCATION_WEB}verify/${id}/${verificationToken}`;
+  const url = `${process.env.LOCATION_WEB}verify/${id}/${verificationToken}`;
   console.log(`Sending verification link : ${url}`);
 
   await transporter.sendMail({
@@ -48,14 +47,14 @@ export function addUMFunctions(app, db) {
     /* Generates a JSON Web Token for the user whose id is given as an argument */
     const user = await db.collection("users").findOne({ id: { $eq: id } });
     if (!user) throw new Error("This user does not exist.");
-    return jsonwebtoken.sign({ id: user.id }, env.JWT_SECRET, { expiresIn: '10d' });
+    return jsonwebtoken.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '10d' });
   }
 
   function authenticateJWT(req, res, next) {
     /* If the request headers object contains a JWT, it means that a user is logged in. In that case, the function loads the user profile to the request object as req.user. */
     const token = req.headers.authorization;
     if (token) {
-      jsonwebtoken.verify(token, env.JWT_SECRET, async (error, jwtuser) => {
+      jsonwebtoken.verify(token, process.env.JWT_SECRET, async (error, jwtuser) => {
         try {
           if (error) return res.status(400).json({ error: error.message });
           const user = await db.collection("users").findOne({ id: { $eq: jwtuser.id } });
