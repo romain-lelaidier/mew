@@ -3,7 +3,7 @@ import { createStore } from "solid-js/store";
 import { is2xx } from "./utils";
 import { getPlaylists } from "./playlists";
 
-const [ token, setToken ] = createSignal(localStorage.getItem("token"));
+export const [ token, setToken ] = createSignal(localStorage.getItem("token"));
 createEffect(() => {
   localStorage.setItem("token", token());
 })

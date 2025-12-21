@@ -55,7 +55,7 @@ export default function App() {
                 <PInfos/>
               </div>
               <PBar />
-              <div class="flex flex-row items-center justify-center gap-2 mb-1">
+              <div class="flex flex-row items-center justify-center gap-1 mb-1">
                 <PControls/>
               </div>
             </div>

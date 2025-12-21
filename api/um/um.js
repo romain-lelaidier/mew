@@ -15,12 +15,16 @@ async function sendVerificationEmail(email, id, verificationToken) {
   const url = `${process.env.LOCATION_WEB}verify/${id}/${verificationToken}`;
   console.log(`Sending verification link : ${url}`);
 
-  await transporter.sendMail({
-    from: `"Mew" <${process.env.MAIL_USER}>`,
-    to: email,
-    subject: "Mew - email verification",
-    html: `Hi <b>user-${id}</b>,<br/><br/>Welcome to Mew !<br/><br/>Before logging in, please verify your email using the following link :<br/><br/><a href="${url}">Verify</a><br/><br/>Have a great time on the website !`, // plain‑text body
-  });
+  try {
+    await transporter.sendMail({
+      from: `"Mew" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: "Mew - email verification",
+      html: `Hi <b>user-${id}</b>,<br/><br/>Welcome to Mew !<br/><br/>Before logging in, please verify your email using the following link :<br/><br/><a href="${url}">Verify</a><br/><br/>Have a great time on the website !`, // plain‑text body
+    });
+  } catch(error) {
+    console.error(error);
+  }
 }
 
 export function addUMFunctions(app, db) {
@@ -371,5 +375,7 @@ export function addUMFunctions(app, db) {
       res.status(400).json({ error: error.message });
     }
   });
+
+  return authenticateJWT;
 
 }

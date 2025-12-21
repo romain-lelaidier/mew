@@ -8,6 +8,7 @@ import { YouTubeExtractor } from "./extractor/youtube.js"
 import { LastFmNavigator } from "./navigator/lastfm.js";
 import { YouTubeNavigator } from "./navigator/youtube.js";
 import { addUMFunctions } from "./um/um.js";
+import { YouTubeDownloader } from "./downloader/youtube.js";
 
 // ip getter
 const getip = (req) => req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -29,6 +30,10 @@ var navigators = {
 
 var extractors = {
   youtube: new YouTubeExtractor(ww, db)
+}
+
+var downloaders = {
+  youtube: new YouTubeDownloader(ww, db)
 }
 
 // ----- logger -----
@@ -108,18 +113,22 @@ app.get('/api/album/:arid/:alid', dmw, async (req, res) => {
 })
 
 app.get('/api/video/:id', dmw, async (req, res) => {
-  const obj = { id: req.params.id };
-  var params = utils.parseQueryString(req._parsedUrl.query);
-  if (params.queueId) obj.queueId = params.queueId;
-  if (params.qid) obj.queueId = params.qid;
-  if (params.wq) obj.withQueue = true;
-  const video = await extractors.youtube.getVideo(obj);
-  log('song', req, {
-    id: req.params.id,
-    title: video.video.title,
-    artist: video.video.artists.map(artist => artist.name).join(', ')
-  });
-  res.json(video);
+  try {
+    const obj = { id: req.params.id };
+    var params = utils.parseQueryString(req._parsedUrl.query);
+    if (params.queueId) obj.queueId = params.queueId;
+    if (params.qid) obj.queueId = params.qid;
+    if (params.wq) obj.withQueue = true;
+    const video = await extractors.youtube.getVideo(obj);
+    log('song', req, {
+      id: req.params.id,
+      title: video.video.title,
+      artist: video.video.artists.map(artist => artist.name).join(', ')
+    });
+    res.json(video);
+  } catch(error) {
+    res.status(400).json({ error: error.message })
+  }
 })
 
 app.get('/api/img', (req, res) => {
@@ -146,11 +155,23 @@ app.get('/api/colors', async (req, res) => {
 })
 
 // ----- um -----
-addUMFunctions(app, db);
+const authenticateJWT = addUMFunctions(app, db);
 
-// app.post('/api/pl/get', (req, res) => um.getPlaylist(req, res));
-// app.post('/api/um/playlists', authenticateJWT, (req, res) => um.getPlaylists(req, res));
-// app.get('/api/um/user/:uname', (req, res) => um.getUser(req, res));
+app.get('/api/download/:id', authenticateJWT, async (req, res) => {
+  try {
+    const obj = { id: req.params.id };
+    const video = await extractors.youtube.getVideo(obj);
+    log('download', req, {
+      id: req.params.id,
+      title: video.video.title,
+      artist: video.video.artists.map(artist => artist.name).join(', ')
+    });
+    const stream = await downloaders.youtube.fastDownloadStream(video.video);
+    stream.pipe(res);
+  } catch(error) {
+    res.status(400).json({ error: error.message })
+  }
+})
 
 const PORT = process.env.PORT_API || 3000;
 app.listen(PORT, () => {

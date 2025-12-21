@@ -3,7 +3,7 @@ import { createSignal, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { durationToString, url } from "../components/utils";
 import { player } from "./logic";
-import { u } from "../components/auth";
+import { token, u } from "../components/auth";
 import { Icon } from "../components/icons";
 
 const colorthief = new ColorThief()
@@ -91,6 +91,21 @@ export function PControls(props) {
     setPlaylistSaveSid(sid);
   }
 
+  async function requestDownload() {
+    const id = player.s.current.id;
+    
+    if (u.connected && token() && token() != 'null') {
+      const res = await fetch('/api/download/' + id, { headers: { authorization: token() } });
+      const blob = await res.blob(); // create a new Blob object.
+      const url = window.URL.createObjectURL(blob); // create a new object url
+      const a = document.createElement("a"); // create a new anchor element
+      a.href = url; // set its href to the object URL
+      a.download = `${id}.webm`;  // set its download attribute to the deisred filename.
+      a.click(); // programmatically clicking the anchor element to trigger the file download.
+    }
+
+  }
+
   function ControlButton(props2) {
     const size = ((props.size || 1) * props2.size * 2) + "em";
     return (
@@ -122,13 +137,13 @@ export function PControls(props) {
   return (
     <>
       <Show when={u.connected}>
-        <ControlButton type="bookmark" size={1.5} onclick={requestPlaylistSave}/>
+        <ControlButton type="heart" size={1.5} onclick={requestPlaylistSave}/>
       </Show>
       <ControlButton type="backward-step" size={1.8} active={player.s.i > 0} onclick={() => player.actions.next(false)} />
       <ControlButton type={player.playing() ? 'pause' : 'play'} size={2} filled={true} onclick={player.actions.playPause} />
       <ControlButton type="forward-step" size={1.8} active={player.s.i + 1 < player.s.queue.length} onclick={player.actions.next} />
       <Show when={u.connected}>
-        <ControlButton type="heart" size={1.5} active={false} />
+        <ControlButton type="download" size={1.5} onclick={requestDownload}/>
       </Show>
     </>
   )
