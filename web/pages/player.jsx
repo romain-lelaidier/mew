@@ -1,25 +1,56 @@
 import { useNavigate, useParams, useSearchParams, A } from "@solidjs/router";
-import { Show } from 'solid-js';
+import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { MetaProvider, Title } from "@solidjs/meta";
 
 import { NavBar } from "../components/navigation";
 import { QueueResults } from '../components/results';
 import { chooseThumbnailUrl } from "../components/utils";
-import { getPlaylists, PlaylistAdder } from "../components/playlists";
+import { getPlaylists } from "../components/playlists";
 import { player } from "../player/logic";
-import { onImageLoad, PBar, PControls, PInfos } from "../player/utils";
+import { requestConversion, fastDownload, onImageLoad, PBar, PControls, PInfos } from "../player/utils";
 import { Layout } from "../components/layout";
+import { Icon } from "../components/icons";
+import { Popper } from "../components/popper";
 
 export default function App() {
+  const navigate = useNavigate();
   const params = useParams();
-
   const [searchParams, setSearchParams] = useSearchParams();
-
   player.start(decodeURIComponent(params.id), searchParams)
-
   getPlaylists();
 
-  const navigate = useNavigate();
+  function HoverButton(props) {
+    return (
+      <div class="relative w-8 h-8 rounded-full flex items-center justify-center bg-b text-d transition duration-100 ease-in-out hover:scale-110 overflow-hidden" onClick={props.onClick}>
+        <Icon type={props.type} size={1}/>
+      </div>
+    );
+  }
+
+  function ShareButton(props) {
+    const [ shareState, setShareState ] = createSignal(false);
+    var r;
+    function share() {
+      navigator.clipboard.writeText(props.url());
+      setShareState(true);
+      if (r) clearTimeout(r);
+      r = setTimeout(() => setShareState(false), 1000);
+    }
+    return <HoverButton type={shareState() ? "clipboard-check" : "share-nodes"} onClick={share} />
+  }
+
+  const [ conversionTrigger, setConversionTrigger ] = createSignal(null);
+  const [ conversionState, setConversionState ] = createSignal(null);
+  const [ conversionProgress, setConversionProgress ] = createSignal(null);
+
+  async function startConversion(props) {
+    setConversionTrigger(true);
+    await requestConversion((state, progress) => {
+      setConversionState(state);
+      setConversionProgress(progress);
+    });
+    setConversionTrigger(false);
+  }
 
   return (
     <Layout isplayer={true}>
@@ -48,8 +79,13 @@ export default function App() {
                   <span class="text-center">Playing <span class="font-bold">{player.s.info.name}</span> (album) by <A href={`/artist/${player.s.info.artistId}`} class="italic">{player.s.info.artist}</A></span>
                 </div>
               </Show>
-              <div class="bg-b/20 w-full rounded-md">
-                <img class="rounded-md" onLoad={onImageLoad} src={window.location.origin + '/api/img?url=' + chooseThumbnailUrl(player.s.info.img || player.s.current.img)} />
+              <div class="bg-b/20 w-full rounded-md relative group rounded-md overflow-hidden">
+                <img class="rounded-md" onLoad={onImageLoad} src={window.location.origin + '/api/img?url=' + chooseThumbnailUrl(player.s.current.img)} />
+                <div class="w-full h-20 absolute -top-20 group-hover:top-0 transition-[top] duration-200 ease-in-out p-2 flex flex-row gap-1">
+                  <ShareButton url={() => `${window.location.origin}/player/${player.s.current.id}`} />
+                  <HoverButton type="download" onClick={startConversion} />
+                  <HoverButton type="bolt-lightning" onClick={fastDownload} />
+                </div>
               </div>
               <div class="flex flex-col items-center leading-[1.2] text-center">
                 <PInfos/>
@@ -67,16 +103,65 @@ export default function App() {
       <div style="min-width:50vw" class="bg-d flex flex-row flex-1 w-full justify-center ls:max-h-full ls:overflow-hidden">
         <div class="flex flex-col gap-2 py-4 px-4 w-130 max-h-full ls:overflow-hidden">
           <NavBar navigator={navigate} />
-          <h3 class="text-xl font-bold">Queue</h3>
-          <div class="flex-grow max-h-full overflow-hidden">
-            <Show when={player.s.loaded} fallback="Loading queue...">
-              <Show when={player.s.queue.length > 0} fallback="Queue is empty.">
-                <QueueResults queue={player.s.queue} i={player.s.i} onClick={i => player.actions.jump(i)} album={player.s.info.type != 'SONG'} />
-              </Show>
-            </Show>
-          </div>
+
+          <Switch>
+
+            <Match when={!player.s.loaded}>
+              Loading queue...
+            </Match>
+
+            <Match when={player.s.info.type == 'SONG'}>
+              <h3 class="text-xl font-bold">Queue</h3>
+              <div class="flex-grow max-h-full overflow-hidden">
+                <QueueResults queue={player.s.queue} i={player.s.i} onClick={i => player.actions.jump(i)} album={false} />
+              </div>
+            </Match>
+
+            <Match when={player.s.info.type == 'ALBUM'}>
+              <div class="flex flex-row gap-2 items-center">
+                <div>
+                  <img class="rounded-md max-h-24" onLoad={onImageLoad} src={window.location.origin + '/api/img?url=' + chooseThumbnailUrl(JSON.parse(player.s.info.imgjson))} />
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="text-xl font-bold">{player.s.info.name}</h3>
+                  <h3 class="text-lg">An album by <For each={JSON.parse(player.s.info.artistsjson)}>{(artist, i) =>
+                    <>
+                      <Show when={i() > 0}>,&nbsp;</Show>
+                      <A class="font-bold" href={`/artist/${artist.id}`}>{artist.name}</A>
+                    </>
+                  }</For></h3>
+                  <div class="flex flex-row gap-1">
+                    <ShareButton url={() => `${window.location.origin}/player/${player.s.info.id}`} />
+                    {/* <HoverButton type="download" onClick={requestDownload} /> */}
+                  </div>
+                </div>
+              </div>
+              <div class="flex-grow max-h-full overflow-hidden">
+                <QueueResults queue={player.s.queue} i={player.s.i} onClick={i => player.actions.jump(i)} album={true} />
+              </div>
+            </Match>
+
+          </Switch>
+
         </div>
       </div>
+
+      <Popper sig={[ conversionTrigger, setConversionTrigger ]} title="Downloading MP3">
+        <div>{["Extracting video", "Downloading audio", "Converting to mp3", "Adding metadata"][conversionState()]}</div>
+        <div class="w-full h-1 mt-1 relative rounded-md">
+          <div class="w-full h-full absolute bg-b/20"></div>
+          <div style={{
+            position: 'absolute',
+            height: '100%',
+            width: `${((conversionState()-1+conversionProgress()/100)*50)}%`,
+            background: 'black'
+          }}></div>
+        </div>
+        <div class="w-full flex flex-row justify-between">
+          <div>{conversionState()+1}/4</div>
+          <div>{conversionProgress()}%</div>
+        </div>
+      </Popper>
 
     </Layout>
   )

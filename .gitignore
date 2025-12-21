@@ -1,3 +1,11 @@
+api_requests
+debug
+downloads
+
+# ----
+# Node
+# ----
+
 # Logs
 logs
 *.log

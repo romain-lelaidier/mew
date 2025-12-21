@@ -238,7 +238,7 @@ export class YouTubeExtractor {
         var info = {
           id: ytipr.videoDetails.videoId,
           title: ytipr.videoDetails.title,
-          // artist: ytipr.videoDetails.author,
+          author: ytipr.videoDetails.author,
           views: parseInt(ytipr.videoDetails.viewCount),
           duration: parseInt(ytipr.videoDetails.lengthSeconds),
           formats: ytipr.streamingData.formats.concat(ytipr.streamingData.adaptiveFormats)
