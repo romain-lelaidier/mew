@@ -46,7 +46,7 @@ export function Layout(props) {
           <Link href={"/profile/" + u.id}>My profile</Link>
         </Show>
         <span>MIT License · 2025</span>
-        <Link href="https://github.com/romain-lelaidier/mew-1" target="_blank">GitHub</Link>
+        <Link href="https://github.com/romain-lelaidier/mew" target="_blank">GitHub</Link>
         <Link href="/legal">Legal</Link>
       </footer>
     </>

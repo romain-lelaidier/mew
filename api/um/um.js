@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
 import { env } from "process";
+import { transporter } from "../mail/mail";
 
 function generateId(len=32) {
   let uid = '';
@@ -40,8 +41,6 @@ export function addUMFunctions(app, db) {
 
   function comparePasswords(user, password) {
     /* Returns true if the given password is the password of the given user */
-    // return user.password == hashSync(password);
-    // return user.password == password;
     return bcrypt.compareSync(password, user.hash);
   }
 

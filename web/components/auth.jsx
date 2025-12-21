@@ -73,7 +73,7 @@ export const uTryLog = async (email, password) => {
     const res = await post('/um/login', { email, password: hash(password) });
     await logFromRes(res);
     return true;
-  } else if (token()) {
+  } else if (token() && token() != 'null') {
     // try to relog (probably restarting a session)
     const res = await post('/um/relog');
     await logFromRes(res);
