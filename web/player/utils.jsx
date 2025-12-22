@@ -6,6 +6,7 @@ import { player } from "./logic";
 import { token, u } from "../components/auth";
 import { Icon } from "../components/icons";
 import { createStore } from "solid-js/store";
+import { songInPlaylist } from "../components/playlists";
 
 const colorthief = new ColorThief()
 
@@ -200,7 +201,7 @@ export function PControls(props) {
   return (
     <>
       <Show when={u.connected}>
-        <ControlButton type="heart" parentsize={props.size} size={1.5} onclick={requestPlaylistSave}/>
+        <ControlButton type={songInPlaylist(player.s.current.id) ? "heart" : "empty-heart"} parentsize={props.size} size={1.5} onclick={requestPlaylistSave}/>
       </Show>
       <ControlButton type="backward-step" parentsize={props.size} size={1.8} active={player.s.i > 0} onclick={() => player.actions.next(false)} />
       <ControlButton type={player.playing() ? 'pause' : 'play'} parentsize={props.size} size={2} filled={true} onclick={player.actions.playPause} />

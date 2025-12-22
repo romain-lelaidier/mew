@@ -103,6 +103,13 @@ function getArray(o) {
   return o;
 }
 
+export function songInPlaylist(id) {
+  for (const pid in u.playlists) {
+    if (JSON.parse(u.playlists[pid].ids).includes(id)) return true;
+  }
+  return false;
+}
+
 export function PlaylistsList(props) {
 
   function songString(length) {
