@@ -222,7 +222,7 @@ export class Player {
       this.setS("info", info => {
         return {
           ...info,
-          artistsjson: JSON.stringify(result.artist),
+          artistsjson: JSON.stringify(result.artists),
           imgjson: JSON.stringify(result.img),
           name: result.name
         }

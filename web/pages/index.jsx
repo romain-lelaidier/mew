@@ -6,6 +6,7 @@ import { u, uLogOut, uTryLog } from '../components/auth';
 import { Link, LinkButton, LinkIcon, mds, User } from '../components/utils';
 import { Layout } from '../components/layout';
 import { Flag } from "../components/flag";
+import { Match, Switch } from "solid-js";
 
 export default function App() {
   const navigate = useNavigate();
@@ -27,19 +28,25 @@ export default function App() {
       <NavBar navigator={navigate} nobackbtn={true}/>
 
       <div class="text-xl">
-        <Show
-            when={u.connected}
-            fallback={<div class="flex gap-2"><LinkIcon href="login" type="right-to-bracket" text="log in"/> or <LinkIcon href="signup" type="paw" text="register"/> to save your playlists</div>}
-          >
-            <div class="flex flex-row gap-1">
-              <div>logged as <User user={u}/></div>
-              <div>{mds}</div>
-              <div class="font-bold flex flex-row gap-2">
-                <LinkIcon href="/settings" type="gear" text="settings"/>{mds}
-                <LinkIcon href="/" type="moon" text="disconnect" onClick={uLogOut}/>
-              </div>
-            </div>
-          </Show>
+        <div class="flex flex-row flex-wrap">
+          <Switch>
+            <Match when={u.connected}>
+              <div class="">logged as&nbsp;</div>
+              <User user={u}/>
+              <div>&nbsp;{mds}&nbsp;</div>
+              <LinkIcon href="/settings" type="gear" text="settings"/>
+              <div>&nbsp;{mds}&nbsp;</div>
+              <LinkIcon href="/" type="moon" text="disconnect" onClick={uLogOut}/>
+            </Match>
+            <Match when={true}>
+              <LinkIcon href="login" type="right-to-bracket" text="log in"/>
+              <div>&nbsp;or&nbsp;</div>
+              <LinkIcon href="signup" type="paw" text="register"/>
+              <div>&nbsp;to save&nbsp;</div>
+              <div>&nbsp;your playlists or download songs.</div>
+            </Match>
+          </Switch>
+        </div>
       </div>
 
       <p class="text-red-700 font-bold max-w-150 text-base">

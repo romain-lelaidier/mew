@@ -1,10 +1,11 @@
 import ColorThief from "colorthief";
 import { createSignal, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { durationToString, url } from "../components/utils";
+import { durationToString, is2xx, url } from "../components/utils";
 import { player } from "./logic";
 import { token, u } from "../components/auth";
 import { Icon } from "../components/icons";
+import { createStore } from "solid-js/store";
 
 const colorthief = new ColorThief()
 
@@ -50,6 +51,34 @@ export function PBar(props) {
   )
 }
 
+export function ControlButton(props) {
+  const size = ((props.parentsize || 1) * props.size * 2) + "em";
+  return (
+    <div
+      style={{width: size, height: size}}
+      classList={{
+        'rounded-full': true,
+        'flex': true,
+        'items-center': true,
+        'justify-center': true,
+
+        'bg-b': props.filled,
+        'text-d': props.filled,
+        'transition': props.filled,
+        'duration-200': props.filled,
+        'ease-in-out': props.filled,
+        'hover:scale-110': props.filled,
+
+        'hover:bg-b/8': !props.filled && (props.active === undefined || props.active === true),
+        'opacity-15': !props.filled && !(props.active === undefined || props.active === true),
+      }}
+      onClick={props.onclick}
+    >
+      <Icon type={props.type} size={(props.parentsize || 1) * props.size}></Icon>
+    </div>
+  )
+}
+
 export function PInfos(props) {
   return (
     <>
@@ -84,6 +113,83 @@ export function PInfos(props) {
 
 export const [playlistSaveSid, setPlaylistSaveSid] = createSignal(null);
 
+async function realDownload(url, fname) {
+  const res = await fetch(url, { headers: { authorization: token() } });
+  if (!is2xx(res)) {
+    const json = await res.json();
+    throw json.error;
+  }
+  const blob = await res.blob();
+  const rurl = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = rurl;
+  a.download = fname;
+  a.click();
+}
+
+export class Converter {
+  constructor() {
+    [ this.s, this.setS ] = createStore({});
+  }
+
+  async realConversion(id, onProgress) {
+    onProgress(0, 0);
+    while (true) {
+      if (u.connected && token() && token() != 'null') {
+        const res = await fetch('/api/convert/' + id, { headers: { authorization: token() } });
+        const json = await res.json();
+        if (!is2xx(res)) throw json.error;
+        onProgress(json.state, json.progress);
+        if (json.state == 4) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        alert("This feature is available only if you have an account. Please login first.")
+      }
+    }
+  }
+
+  async launchDownload(id) {
+    if (u.connected && token() && token() != 'null') {
+      try {
+        await realDownload('/api/converted/' + id, `${id}.mp3`);
+      } catch(error) {
+        console.error(error);
+        console.log("retrying conversion");
+        this.setS(id, null);
+        this.requestConversion(id);
+      }
+    } else {
+      alert("This feature is available only if you have an account. Please login first.")
+    }
+  }
+
+  async requestConversion(id) {
+    if (id in this.s && this.s[id] != null) {
+      if (this.s[id].state() == 4) {
+        this.launchDownload(id);
+      }
+    } else {
+      const [ state, setState ] = createSignal(0);
+      const [ progress, setProgress ] = createSignal(0);
+      this.setS(id, { state, progress });
+      await this.realConversion(id, (state, progress) => {
+        setState(state);
+        setProgress(progress);
+      })
+      this.launchDownload(id);
+    }
+  }
+}
+
+export async function fastDownload() {
+  const id = player.s.current.id;
+  if (u.connected && token() && token() != 'null') {
+    realDownload('/api/download/' + id, `${id}.webm`);
+  } else {
+    alert("This feature is available only if you have an account. Please login first.")
+  }
+}
+
 export function PControls(props) {
 
   function requestPlaylistSave() {
@@ -91,59 +197,16 @@ export function PControls(props) {
     setPlaylistSaveSid(sid);
   }
 
-  async function requestDownload() {
-    const id = player.s.current.id;
-    
-    if (u.connected && token() && token() != 'null') {
-      const res = await fetch('/api/download/' + id, { headers: { authorization: token() } });
-      const blob = await res.blob(); // create a new Blob object.
-      const url = window.URL.createObjectURL(blob); // create a new object url
-      const a = document.createElement("a"); // create a new anchor element
-      a.href = url; // set its href to the object URL
-      a.download = `${id}.webm`;  // set its download attribute to the deisred filename.
-      a.click(); // programmatically clicking the anchor element to trigger the file download.
-    }
-
-  }
-
-  function ControlButton(props2) {
-    const size = ((props.size || 1) * props2.size * 2) + "em";
-    return (
-      <div
-        style={{width: size, height: size}}
-        classList={{
-          'rounded-full': true,
-          'flex': true,
-          'items-center': true,
-          'justify-center': true,
-
-          'bg-b': props2.filled,
-          'text-d': props2.filled,
-          'transition': props2.filled,
-          'duration-200': props2.filled,
-          'ease-in-out': props2.filled,
-          'hover:scale-110': props2.filled,
-
-          'hover:bg-b/8': !props2.filled && (props2.active === undefined || props2.active === true),
-          'opacity-15': !props2.filled && !(props2.active === undefined || props2.active === true),
-        }}
-        onClick={props2.onclick}
-      >
-        <Icon type={props2.type} size={(props.size || 1) * props2.size}></Icon>
-      </div>
-    )
-  }
-
   return (
     <>
       <Show when={u.connected}>
-        <ControlButton type="heart" size={1.5} onclick={requestPlaylistSave}/>
+        <ControlButton type="heart" parentsize={props.size} size={1.5} onclick={requestPlaylistSave}/>
       </Show>
-      <ControlButton type="backward-step" size={1.8} active={player.s.i > 0} onclick={() => player.actions.next(false)} />
-      <ControlButton type={player.playing() ? 'pause' : 'play'} size={2} filled={true} onclick={player.actions.playPause} />
-      <ControlButton type="forward-step" size={1.8} active={player.s.i + 1 < player.s.queue.length} onclick={player.actions.next} />
+      <ControlButton type="backward-step" parentsize={props.size} size={1.8} active={player.s.i > 0} onclick={() => player.actions.next(false)} />
+      <ControlButton type={player.playing() ? 'pause' : 'play'} parentsize={props.size} size={2} filled={true} onclick={player.actions.playPause} />
+      <ControlButton type="forward-step" parentsize={props.size} size={1.8} active={player.s.i + 1 < player.s.queue.length} onclick={player.actions.next} />
       <Show when={u.connected}>
-        <ControlButton type="download" size={1.5} onclick={requestDownload}/>
+        <ControlButton type="download" parentsize={props.size} size={1.5} active={false} onclick={() => {}}/>
       </Show>
     </>
   )
