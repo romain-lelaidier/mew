@@ -1,7 +1,7 @@
 import ColorThief from "colorthief";
 import { createSignal, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { durationToString, url } from "../components/utils";
+import { durationToString, is2xx, url } from "../components/utils";
 import { player } from "./logic";
 import { token, u } from "../components/auth";
 import { Icon } from "../components/icons";
@@ -124,16 +124,15 @@ async function realDownload(url, fname) {
 
 export async function requestConversion(onProgress) {
   const id = player.s.current.id;
+  onProgress(0, 0);
   if (u.connected && token() && token() != 'null') {
-    const res = await fetch('/api/convert/' + id, { headers: { authorization: token() } });
-    const reader = res.body.getReader();
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const str = new TextDecoder().decode(value);
-      const lastline = str.split('\n').reverse()[1];
-      const progress = lastline.split(' ').map(parseFloat);
-      onProgress(progress[0], progress[1]);
+      const res = await fetch('/api/convert/' + id, { headers: { authorization: token() } });
+      const json = await res.json();
+      if (!is2xx(res)) throw json.error;
+      onProgress(json.state, json.progress);
+      if (json.state == 4) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     realDownload('/api/converted/' + id, `${id}.mp3`);
   } else {

@@ -1,5 +1,4 @@
 import { get } from "https";
-import * as utils from "../utils.js";
 import fs from "fs";
 import { FFMpegProgress } from "ffmpeg-progress-wrapper";
 
@@ -15,6 +14,21 @@ export class YouTubeDownloader {
     }
     if (!fs.existsSync(this.tmppath)) {
       fs.mkdirSync(this.tmppath)
+    }
+
+    this.progress = {};
+  }
+
+  getProgress(id) {
+    if (id in this.progress) {
+      if (this.progress[id].state == 4) {
+        if (fs.existsSync(`${this.savepath}${id}.mp3`)) {
+          return this.progress[id]
+        } else {
+          return null;
+        }
+      }
+      return this.progress[id];
     }
   }
 
@@ -96,17 +110,43 @@ export class YouTubeDownloader {
     })
   }
 
-  downloadAndConvert(video, onProgress) {
+  downloadAndConvert(video, db) {
     return new Promise(async (resolve, reject) => {
       const wpath = `${this.tmppath}${video.id}.webm`;
       const ipath = `${this.tmppath}${video.id}.jpeg`;
       const mpath = `${this.tmppath}${video.id}.mp3`;
       const fpath = `${this.savepath}${video.id}.mp3`;
 
+      this.progress[video.id] = {
+        state: 0,
+        progress: 0
+      };
+
+      const onProgress = (state, progress) => {
+        this.progress[video.id].state = state;
+        this.progress[video.id].progress = Math.round(progress * 100);
+      }
+
       if (fs.existsSync(fpath)) {
-        onProgress(3, 1);
+        onProgress(4, 0);
         return resolve();
       }
+
+      // var j = 0, i = 0;
+      // var interval;
+      // interval = setInterval(() => {
+      //   onProgress(j, i);
+      //   i += 2;
+      //   if (i == 100) {
+      //     i = 0;
+      //     j++;
+      //     if (j == 4) {
+      //       clearInterval(interval);
+      //       onProgress(4, 0);
+      //       resolve();
+      //     }
+      //   }
+      // }, 30);
 
       await this.fastDownload(video, wpath, p => onProgress(1, p));
       
@@ -125,8 +165,9 @@ export class YouTubeDownloader {
           '-metadata', `album=${album}`,
           fpath, '-y' 
         ]);
+        onProgress(3, 0)
         await process.onDone();
-        onProgress(3, 1)
+        onProgress(4, 0)
         resolve();
       })
     })

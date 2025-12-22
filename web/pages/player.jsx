@@ -79,9 +79,9 @@ export default function App() {
                   <span class="text-center">Playing <span class="font-bold">{player.s.info.name}</span> (album) by <A href={`/artist/${player.s.info.artistId}`} class="italic">{player.s.info.artist}</A></span>
                 </div>
               </Show>
-              <div class="bg-b/20 w-full rounded-md relative group rounded-md overflow-hidden">
+              <div class="bg-b/20 w-full rounded-md relative group rounded-md overflow-hidden" tabindex="0">
                 <img class="rounded-md" onLoad={onImageLoad} src={window.location.origin + '/api/img?url=' + chooseThumbnailUrl(player.s.current.img)} />
-                <div class="w-full h-20 absolute -top-20 group-hover:top-0 transition-[top] duration-200 ease-in-out p-2 flex flex-row gap-1">
+                <div class="w-full h-20 absolute -top-20 group-hover:top-0 group-focus:top-0 transition-[top] duration-200 ease-in-out p-2 flex flex-row gap-1">
                   <ShareButton url={() => `${window.location.origin}/player/${player.s.current.id}`} />
                   <HoverButton type="download" onClick={startConversion} />
                   <HoverButton type="bolt-lightning" onClick={fastDownload} />
@@ -153,7 +153,7 @@ export default function App() {
           <div style={{
             position: 'absolute',
             height: '100%',
-            width: `${((conversionState()-1+conversionProgress()/100)*50)}%`,
+            width: `${Math.min(100, Math.max(0, (conversionState()-1+conversionProgress()/100)*50))}%`,
             background: 'black'
           }}></div>
         </div>
