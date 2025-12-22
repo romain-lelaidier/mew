@@ -207,7 +207,7 @@ export function PControls(props) {
       <ControlButton type={player.playing() ? 'pause' : 'play'} parentsize={props.size} size={2} filled={true} onclick={player.actions.playPause} />
       <ControlButton type="forward-step" parentsize={props.size} size={1.8} active={player.s.i + 1 < player.s.queue.length} onclick={player.actions.next} />
       <Show when={u.connected}>
-        <ControlButton type="download" parentsize={props.size} size={1.5} active={false} onclick={() => {}}/>
+        <ControlButton type="repeat" parentsize={props.size} size={1.5} active={false} onclick={() => {}}/>
       </Show>
     </>
   )
