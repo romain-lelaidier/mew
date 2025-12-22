@@ -6,6 +6,7 @@ import { Icon } from "./icons.jsx";
 export const mds = ' · ';
 
 export function QueueResults(props) {
+  console.log(props.queue)
   return (
     <div class="flex flex-col leading-[1.2] max-h-full overflow-y-hidden ls:overflow-y-scroll">
       <For each={props.queue}>{(result, j) =>
@@ -15,8 +16,8 @@ export function QueueResults(props) {
               <path d="M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z"/>
             </svg>
           </Show>
-          <Show when={result.albumsjson && JSON.parse(result.albumsjson).length > 0}
-            fallback=<div class="flex flex-row items-center">
+          <Show when={props.album != true || result.albumsjson && JSON.parse(result.albumsjson).length > 0}
+            fallback={<div class="flex flex-row items-center">
               <div class="w-8 h-8 flex justify-center items-center">
                 <span>{result.index}.</span>
               </div>
@@ -24,7 +25,7 @@ export function QueueResults(props) {
                 <span class="font-bold">{result.name}</span>
                 <Show when={result.duration}><span>{durationToString(result.duration)}</span></Show>
               </div>
-            </div>
+            </div>}
           >
             <img loading="lazy" class="h-16 rounded-sm" src={chooseThumbnailUrl(result.img || JSON.parse(result.imgjson), 100)} />
             <div>

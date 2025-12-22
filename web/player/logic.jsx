@@ -153,7 +153,7 @@ export class Player {
       info: {
         id,
         qid: params.qid,
-        type: { 11: 'SONG', 10: 'PLAYLIST' }[ id.length ] || 'ALBUM'
+        type: { 11: 'SONG', 10: 'MPL' }[ id.length ] || 'ALBUM'
       },
       queue: [],
       i: -1,
@@ -230,21 +230,25 @@ export class Player {
       this.setS("i", i => 0);
       this.setS("inext", i => 1);
       this.appendToQueue(result.songs);
-    } else if (this.s.info.type == 'PLAYLIST') {
+    } else if (this.s.info.type == 'MPL') {
       const playlist = await getPlaylist(this.s.info.id);
       this.setS("info", info => {
         return {
           ...info,
-          // owners: playlist.owners,
+          owners: playlist.owners,
           name: playlist.name
         }
       })
       this.setS("i", i => 0);
       this.setS("inext", i => 1);
       this.appendToQueue(playlist.songs.map(s => {
+        if (s.artists == null) delete s.artists;
+        if (s.albums == null) delete s.albums;
         return {
           ...s,
-          // img: [ { url: s.thumbnail, width: 60, height: 60 } ]
+          artistsjson: JSON.stringify(s.artists || []),
+          albumsjson: JSON.stringify(s.albums || []),
+          imgjson: JSON.stringify(s.img || {}),
         }
       }));
     }

@@ -4,7 +4,7 @@ import { MetaProvider, Title } from "@solidjs/meta";
 
 import { NavBar } from "../components/navigation";
 import { QueueResults } from '../components/results';
-import { chooseThumbnailUrl } from "../components/utils";
+import { chooseThumbnailUrl, User } from "../components/utils";
 import { getPlaylists } from "../components/playlists";
 import { player } from "../player/logic";
 import { fastDownload, onImageLoad, PBar, PControls, PInfos, Converter } from "../player/utils";
@@ -133,6 +133,29 @@ export default function App() {
               </div>
               <div class="flex-grow max-h-full overflow-hidden">
                 <QueueResults queue={player.s.queue} i={player.s.i} onClick={i => player.actions.jump(i)} album={true} />
+              </div>
+            </Match>
+
+            <Match when={player.s.info.type == 'MPL'}>
+              <div class="flex flex-row gap-2 items-center">
+                {/* <div>
+                  <img class="rounded-md max-h-24" onLoad={onImageLoad} src={window.location.origin + '/api/img?url=' + chooseThumbnailUrl(JSON.parse(player.s.info.imgjson))} />
+                </div> */}
+                <div class="flex flex-col">
+                  <h3 class="text-xl font-bold">{player.s.info.name}</h3>
+                  <h3 class="text-lg">A playlist by <For each={player.s.info.owners}>{(owner, i) =>
+                    <>
+                      <Show when={i() > 0}>,&nbsp;</Show>
+                      <User user={owner}/>
+                    </>
+                  }</For></h3>
+                  <div class="flex flex-row gap-1">
+                    <ShareButton url={() => `${window.location.origin}/player/${player.s.info.id}`} />
+                  </div>
+                </div>
+              </div>
+              <div class="flex-grow max-h-full overflow-hidden">
+                <QueueResults queue={player.s.queue} i={player.s.i} onClick={i => player.actions.jump(i)} album={false} />
               </div>
             </Match>
 
