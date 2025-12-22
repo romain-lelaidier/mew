@@ -7,7 +7,7 @@ import { QueueResults } from '../components/results';
 import { chooseThumbnailUrl } from "../components/utils";
 import { getPlaylists } from "../components/playlists";
 import { player } from "../player/logic";
-import { requestConversion, fastDownload, onImageLoad, PBar, PControls, PInfos } from "../player/utils";
+import { fastDownload, onImageLoad, PBar, PControls, PInfos, Converter } from "../player/utils";
 import { Layout } from "../components/layout";
 import { Icon } from "../components/icons";
 import { Popper } from "../components/popper";
@@ -39,17 +39,12 @@ export default function App() {
     return <HoverButton type={shareState() ? "clipboard-check" : "share-nodes"} onClick={share} />
   }
 
+  const converter = new Converter();
   const [ conversionTrigger, setConversionTrigger ] = createSignal(null);
-  const [ conversionState, setConversionState ] = createSignal(null);
-  const [ conversionProgress, setConversionProgress ] = createSignal(null);
 
   async function startConversion(props) {
-    setConversionTrigger(true);
-    await requestConversion((state, progress) => {
-      setConversionState(state);
-      setConversionProgress(progress);
-    });
-    setConversionTrigger(false);
+    setConversionTrigger(player.s.current.id);
+    converter.requestConversion(player.s.current.id);
   }
 
   return (
@@ -147,20 +142,22 @@ export default function App() {
       </div>
 
       <Popper sig={[ conversionTrigger, setConversionTrigger ]} title="Downloading MP3">
-        <div>{["Extracting video", "Downloading audio", "Converting to mp3", "Adding metadata"][conversionState()]}</div>
-        <div class="w-full h-1 mt-1 relative rounded-md">
-          <div class="w-full h-full absolute bg-b/20"></div>
-          <div style={{
-            position: 'absolute',
-            height: '100%',
-            width: `${Math.min(100, Math.max(0, (conversionState()-1+conversionProgress()/100)*50))}%`,
-            background: 'black'
-          }}></div>
-        </div>
-        <div class="w-full flex flex-row justify-between">
-          <div>{conversionState()+1}/4</div>
-          <div>{conversionProgress()}%</div>
-        </div>
+        <Show when={conversionTrigger() in converter.s && converter.s[conversionTrigger()] != null}>
+          <div>{["Extracting video", "Downloading audio", "Converting to mp3", "Adding metadata"][converter.s[conversionTrigger()].state()]}</div>
+          <div class="w-full h-1 mt-1 relative rounded-md">
+            <div class="w-full h-full absolute bg-b/20"></div>
+            <div style={{
+              position: 'absolute',
+              height: '100%',
+              width: `${Math.min(100, Math.max(0, (converter.s[conversionTrigger()].state()-1+converter.s[conversionTrigger()].progress()/100)*50))}%`,
+              background: 'black'
+            }}></div>
+          </div>
+          <div class="w-full flex flex-row justify-between">
+            <div>{converter.s[conversionTrigger()].state()+1}/4</div>
+            <div>{converter.s[conversionTrigger()].progress()}%</div>
+          </div>
+        </Show>
       </Popper>
 
     </Layout>

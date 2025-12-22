@@ -5,6 +5,7 @@ import { durationToString, is2xx, url } from "../components/utils";
 import { player } from "./logic";
 import { token, u } from "../components/auth";
 import { Icon } from "../components/icons";
+import { createStore } from "solid-js/store";
 
 const colorthief = new ColorThief()
 
@@ -114,6 +115,10 @@ export const [playlistSaveSid, setPlaylistSaveSid] = createSignal(null);
 
 async function realDownload(url, fname) {
   const res = await fetch(url, { headers: { authorization: token() } });
+  if (!is2xx(res)) {
+    const json = await res.json();
+    throw json.error;
+  }
   const blob = await res.blob();
   const rurl = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -122,21 +127,57 @@ async function realDownload(url, fname) {
   a.click();
 }
 
-export async function requestConversion(onProgress) {
-  const id = player.s.current.id;
-  onProgress(0, 0);
-  if (u.connected && token() && token() != 'null') {
+export class Converter {
+  constructor() {
+    [ this.s, this.setS ] = createStore({});
+  }
+
+  async realConversion(id, onProgress) {
+    onProgress(0, 0);
     while (true) {
-      const res = await fetch('/api/convert/' + id, { headers: { authorization: token() } });
-      const json = await res.json();
-      if (!is2xx(res)) throw json.error;
-      onProgress(json.state, json.progress);
-      if (json.state == 4) break;
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (u.connected && token() && token() != 'null') {
+        const res = await fetch('/api/convert/' + id, { headers: { authorization: token() } });
+        const json = await res.json();
+        if (!is2xx(res)) throw json.error;
+        onProgress(json.state, json.progress);
+        if (json.state == 4) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        alert("This feature is available only if you have an account. Please login first.")
+      }
     }
-    realDownload('/api/converted/' + id, `${id}.mp3`);
-  } else {
-    alert("This feature is available only if you have an account. Please login first.")
+  }
+
+  async launchDownload(id) {
+    if (u.connected && token() && token() != 'null') {
+      try {
+        await realDownload('/api/converted/' + id, `${id}.mp3`);
+      } catch(error) {
+        console.error(error);
+        console.log("retrying conversion");
+        this.setS(id, null);
+        this.requestConversion(id);
+      }
+    } else {
+      alert("This feature is available only if you have an account. Please login first.")
+    }
+  }
+
+  async requestConversion(id) {
+    if (id in this.s && this.s[id] != null) {
+      if (this.s[id].state() == 4) {
+        this.launchDownload(id);
+      }
+    } else {
+      const [ state, setState ] = createSignal(0);
+      const [ progress, setProgress ] = createSignal(0);
+      this.setS(id, { state, progress });
+      await this.realConversion(id, (state, progress) => {
+        setState(state);
+        setProgress(progress);
+      })
+      this.launchDownload(id);
+    }
   }
 }
 
@@ -165,7 +206,7 @@ export function PControls(props) {
       <ControlButton type={player.playing() ? 'pause' : 'play'} parentsize={props.size} size={2} filled={true} onclick={player.actions.playPause} />
       <ControlButton type="forward-step" parentsize={props.size} size={1.8} active={player.s.i + 1 < player.s.queue.length} onclick={player.actions.next} />
       <Show when={u.connected}>
-        <ControlButton type="download" parentsize={props.size} size={1.5} active={false} onclick={requestConversion}/>
+        <ControlButton type="download" parentsize={props.size} size={1.5} active={false} onclick={() => {}}/>
       </Show>
     </>
   )
