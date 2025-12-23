@@ -1,5 +1,5 @@
 import { For, createSignal } from "solid-js";
-import { u, setU, uTryLog, post } from "./auth";
+import { u, setU, uTryLog, post, get } from "./auth";
 import { is2xx, LinkButton, timeAgo, Link } from "./utils";
 import { Icon } from "./icons";
 import { Popper } from "./popper";
@@ -11,6 +11,7 @@ function setPlaylist(playlist) {
   setU("playlists", playlist.pid, {
     name: playlist.name,
     ids: JSON.stringify(ids),
+    history: playlist.history || false,
     createdAt: playlist.createdAt,
     updatedAt: playlist.updatedAt
   })
@@ -53,6 +54,17 @@ export const addToPlaylist = async (pid, sid) => {
   setPlaylist(pl);
 }
 
+export const addToHistory = async (id) => {
+  if (!u.connected) await uTryLog();
+  if (!u.connected) return;
+  for (const pid in u.playlists) {
+    if (u.playlists[pid].history == true) {
+      addToPlaylist(pid, id);
+      break;
+    }
+  }
+}
+
 export const removeFromPlaylist = async (pid, sid) => {
   if (!u.connected) await uTryLog();
   if (!u.connected) return;
@@ -82,7 +94,7 @@ export const renamePlaylist = async (pid, name) => {
 }
 
 export const getPlaylist = async (pid) => {
-  const res = await fetch('/pl/' + pid);
+  const res = await get('/pl/' + pid);
   const json = await res.json();
   if (!is2xx(res)) throw json.error;
   return json;
@@ -105,7 +117,7 @@ function getArray(o) {
 
 export function songInPlaylist(id) {
   for (const pid in u.playlists) {
-    if (JSON.parse(u.playlists[pid].ids).includes(id)) return true;
+    if (!u.playlists[pid].history && JSON.parse(u.playlists[pid].ids).includes(id)) return true;
   }
   return false;
 }
@@ -123,22 +135,25 @@ export function PlaylistsList(props) {
 
   function PlaylistBlock(props2) {
     const pl = props2.pl;
-    if (!pl || !pl.name) return (<></>)
+    if (!pl || (!pl.name && !pl.history)) return (<></>)
     return (
       <div class="px-2 pb-1 rounded-md hover:bg-white/10">
         <div class="flex flex-row gap-2 items-center">
           <Show when={props.sid && props.sid()}>
             <Icon type={getArray(pl.ids).includes(props.sid()) ? 'square-check' : 'empty-square'} />
           </Show>
+          <Show when={pl.history == true}>
+            <Icon type="clock-rotate-left"/>
+          </Show>
           <div class="flex-grow leading-[1.2] py-1">
-            <div class="font-bold">{pl.name}</div>
+            <div class="font-bold">{pl.name || "History"}</div>
             <div class="opacity-80">
               <div>{songString(getArray(pl.ids).length)}</div>
               <div class="italic">Edited {timeAgo(new Date(pl.updatedAt))}</div>
               {/* <div>Last modified: {new Date(pl.modified).toLocaleString()}</div> */}
             </div>
           </div>
-          <Show when={props.editable}>
+          <Show when={props.editable && pl.history != true}>
             <div class="flex flex-row gap-2 items-center">
               <div onClick={(e) => { e.preventDefault(); setTrashPid(props2.pid) }}><Icon type="trash" /></div>
               <div onClick={(e) => { e.preventDefault(); setEditPid(props2.pid) }}><Icon type="pen" /></div>
@@ -152,8 +167,10 @@ export function PlaylistsList(props) {
   return (
     <>
       <For each={Object.entries(props.playlists).filter(p => p[1] != null).sort((a, b) => new Date(b[1].updatedAt) - new Date(a[1].updatedAt))}>{([pid, pl], i) => 
-        <Show when={props.onClick} fallback={<Link href={"/playlist/" + pid}><PlaylistBlock pl={pl} pid={pid} /></Link>}>
-          <div onClick={() => props.onClick(pid)} class="cursor-pointer"><PlaylistBlock pl={pl} pid={pid} /></div>
+        <Show when={!props.withouthistory || !pl.history}>
+          <Show when={props.onClick} fallback={<Link href={"/playlist/" + pid}><PlaylistBlock pl={pl} pid={pid} /></Link>}>
+            <div onClick={() => props.onClick(pid)} class="cursor-pointer"><PlaylistBlock pl={pl} pid={pid} /></div>
+          </Show>
         </Show>
       }</For>
 
@@ -188,7 +205,7 @@ export function PlaylistAdder(props) {
     <Popper sig={[playlistSaveSid, setPlaylistSaveSid]} title="Save to playlist">
       <div>Manage your playlists <span onClick={() => setPlaylistSaveSid(null)}><LinkButton href={"/profile/" + u.id}/></span></div>
       <div class="overflow-scroll flex-grow flex flex-col">
-        <PlaylistsList playlists={u.playlists} onClick={adder} sid={playlistSaveSid} />
+        <PlaylistsList playlists={u.playlists} onClick={adder} sid={playlistSaveSid} withouthistory={true} />
       </div>
     </Popper>
   )

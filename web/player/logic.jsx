@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { getPlaylist } from "../components/playlists";
+import { addToHistory, getPlaylist } from "../components/playlists";
 import { useLocation, useNavigate } from "@solidjs/router";
 
 function prepare(obj) {
@@ -308,6 +308,7 @@ export class Player {
 
   tryPlay() {
     if (this.s.current) {
+      addToHistory(this.s.current.id);
       if (this.audioDOM.src != this.s.current.stream.url) {
         this.audioDOM.src = this.s.current.stream.url;
         this.setAudio("state", "loading");

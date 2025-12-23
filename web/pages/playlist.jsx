@@ -1,6 +1,6 @@
 import { useParams } from '@solidjs/router';
 import { MetaProvider, Title } from "@solidjs/meta";
-import { createResource, createSignal, For, Show } from 'solid-js';
+import { createResource, createSignal, ErrorBoundary, For, Show } from 'solid-js';
 import { AggregateSpans, mds } from '../components/results';
 import { BackButton, durationToString, timeAgo, User, Link, url, chooseThumbnailUrl, listenersToString } from '../components/utils';
 import { getPlaylist, removeFromPlaylist } from '../components/playlists';
@@ -23,9 +23,11 @@ export default function App() {
         <Title>Mew - Playlist</Title>
       </MetaProvider>
 
+      <BackButton/>
+      <ErrorBoundary fallback={<div>Error loading playlist: <b class="text-red-700">{playlist.error.message}</b></div>}>
+
       <div>
-        <BackButton/>
-        <div class="text-3xl">playlist <Show when={playlist()}><b>{playlist().name}</b></Show></div>
+        <div class="text-3xl">{playlist() ? (playlist().name || "History") : "Loading playlist..."}</div>
       </div>
 
       <Show when={playlist()}>
@@ -77,7 +79,7 @@ export default function App() {
                 ]} sep={mds} bf={<br/>} />
               </div>
 
-              <Show when={u.connected && playlist().owners.some(owner => owner.id == u.id)}>
+              <Show when={u.connected && playlist().owners.some(owner => owner.id == u.id) && playlist().history != true}>
                 <div class="mr-2 flex flex-row gap-1 items-center">
                   <button onClick={(e) => { e.preventDefault(); setTrashSid(song.id); }}><Icon type="trash"/></button>
                 </div>
@@ -99,6 +101,8 @@ export default function App() {
           </div>
         </div>
       </Popper>
+
+      </ErrorBoundary>
 
     </Layout>
   );

@@ -54,22 +54,38 @@ export function addUMFunctions(app, db) {
     return jsonwebtoken.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '10d' });
   }
 
-  function authenticateJWT(req, res, next) {
+  function getUserFromJWT(token) {
+    return new Promise((resolve, reject) => {
+      jsonwebtoken.verify(token, process.env.JWT_SECRET, async (error, jwtuser) => {
+        try {
+          if (error) return reject(error);
+          const user = await db.collection("users").findOne({ id: { $eq: jwtuser.id } });
+          if (!user) return reject(new Error("This user does not exist."));
+          if (!user.verified) return reject(new Error("Your account is not verified. Please check your inbox before logging in."));
+          resolve(user);
+        } catch(error) {
+          reject(error);
+        }
+      });
+    })
+  }
+
+  async function getUserFromReq(req) {
+    const token = req.headers.authorization;
+    if (token) return getUserFromJWT(token);
+  }
+
+  async function authenticateJWT(req, res, next) {
     /* If the request headers object contains a JWT, it means that a user is logged in. In that case, the function loads the user profile to the request object as req.user. */
     const token = req.headers.authorization;
     if (token) {
-      jsonwebtoken.verify(token, process.env.JWT_SECRET, async (error, jwtuser) => {
-        try {
-          if (error) return res.status(400).json({ error: error.message });
-          const user = await db.collection("users").findOne({ id: { $eq: jwtuser.id } });
-          if (!user) throw new Error("This user does not exist.");
-          if (!user.verified) throw new Error("Your account is not verified. Please check your inbox before logging in.");
-          req.user = user;
-          next();
-        } catch(error) {
-          res.status(400).json({ error: "No token provided."});
-        }
-      });
+      try {
+        const user = await getUserFromJWT(token);
+        req.user = user;
+        next();
+      } catch(error) {
+        res.status(400).json({ error: "No token provided."});
+      }
     } else {
       res.status(400).json({ error: "No token provided."});
     }
@@ -119,6 +135,16 @@ export function addUMFunctions(app, db) {
           $unset: { verificationToken: "" }
         }
       )
+
+      // create history playlist
+      const pid = await generateFreeId("playlists", "id", 10);
+      const playlist = {
+        pid, ids: [], history: true,
+        owners: [id], private: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      await db.collection("playlists").insertOne(playlist);
 
       const token = await generateJWT(id);
       res.status(200).json({ id, token });
@@ -213,6 +239,8 @@ export function addUMFunctions(app, db) {
       const user = await db.collection("users").findOne({ id: { $eq: req.params.id } });
       if (!user) throw new Error("This user does not exist.");
 
+      const logged = await getUserFromReq(req);
+
       const response = {
         id: user.id,
         params: {}
@@ -223,6 +251,7 @@ export function addUMFunctions(app, db) {
       const playlists = await (await db.collection("playlists").find({ owners: user.id })).toArray();
       response.playlists = {};
       for (const playlist of playlists) {
+        if (playlist.private && (!logged || !playlist.owners.includes(logged.id))) continue;
         response.playlists[playlist.pid] = {
           name: playlist.name,
           owners: playlist.owners,
@@ -286,12 +315,17 @@ export function addUMFunctions(app, db) {
       const id = req.params.id;
       const video = await db.collection("songs").findOne({ id: { $eq: id } });
       if (!video) throw new Error("Unknown id. Please listen to the song before adding it to any playlist.");
+      const playlist = await db.collection("playlists").findOne({ pid: { $eq: req.params.pid } });
+      if (!playlist) throw new Error('Unkown playlist.');
+      const ids = playlist.ids;
+      // if (ids.includes(id)) ids.splice(ids.indexOf(id), 1);
+      ids.unshift(id);
       await db.collection("playlists").updateOne(
         { pid: { $eq: req.params.pid } },
-        { 
-          $addToSet: { ids: id },
-          $set: { updatedAt: new Date() }
-        }
+        { $set: {
+          ids: ids,
+          updatedAt: new Date()
+        } }
       );
       res.status(200).json({ message: "Playlist updated successfully." });
     } catch (error) {
@@ -302,11 +336,14 @@ export function addUMFunctions(app, db) {
   app.post('/pl/remove/:pid/:id', authenticateJWT, isPlaylistOwner, async (req, res) => {
     try {
       const id = req.params.id;
+      const playlist = await db.collection("playlists").findOne({ pid: { $eq: req.params.pid } });
+      if (!playlist) throw new Error('Unkown playlist.');
+      const ids = playlist.ids;
+      while (ids.includes(id)) ids.splice(ids.indexOf(id), 1);
       await db.collection("playlists").updateOne(
         { pid: { $eq: req.params.pid } },
         { 
-          $pull: { ids: { $eq: id } },
-          $set: { updatedAt: new Date() }
+          $set: { ids, updatedAt: new Date() }
         }
       );
       res.status(200).json({ message: "Playlist updated successfully." });
@@ -361,6 +398,11 @@ export function addUMFunctions(app, db) {
       const playlist = await db.collection("playlists").findOne({ pid: { $eq: req.params.pid } });
       if (!playlist) throw new Error("Unknown playlist id.");
 
+      if (playlist.private) {
+        const user = await getUserFromReq(req);
+        if (!user || !playlist.owners.includes(user.id)) throw new Error('This playlist is private.');
+      }
+
       const owners = await (await db.collection("users").find({ id: { $in: playlist.owners } })).toArray();
       const songs = await (await db.collection("songs").find({ id: { $in: playlist.ids } })).toArray();
 
@@ -368,6 +410,7 @@ export function addUMFunctions(app, db) {
         pid: playlist.pid,
         name: playlist.name,
         createdAt: playlist.createdAt,
+        history: playlist.history,
         owners: owners.map(owner => ({ id: owner.id, params: owner.params })),
         songs: playlist.ids.map(id => songs.filter(song => song.id == id)[0])
       })
