@@ -150,34 +150,34 @@ export class Converter {
   }
 
   async launchDownload(id) {
-    if (u.connected && token() && token() != 'null') {
-      try {
-        await realDownload('/api/converted/' + id, `${id}.mp3`);
-      } catch(error) {
-        console.error(error);
-        console.log("retrying conversion");
-        this.setS(id, null);
-        this.requestConversion(id);
-      }
-    } else {
-      alert("This feature is available only if you have an account. Please login first.")
+    try {
+      await realDownload('/api/converted/' + id, `${id}.mp3`);
+    } catch(error) {
+      console.error(error);
+      console.log("retrying conversion");
+      this.setS(id, null);
+      this.requestConversion(id);
     }
   }
 
   async requestConversion(id) {
-    if (id in this.s && this.s[id] != null) {
-      if (this.s[id].state() == 4) {
+    if (u.connected && token() && token() != 'null') {
+      if (id in this.s && this.s[id] != null) {
+        if (this.s[id].state() == 4) {
+          this.launchDownload(id);
+        }
+      } else {
+        const [ state, setState ] = createSignal(0);
+        const [ progress, setProgress ] = createSignal(0);
+        this.setS(id, { state, progress });
+        await this.realConversion(id, (state, progress) => {
+          setState(state);
+          setProgress(progress);
+        })
         this.launchDownload(id);
       }
     } else {
-      const [ state, setState ] = createSignal(0);
-      const [ progress, setProgress ] = createSignal(0);
-      this.setS(id, { state, progress });
-      await this.realConversion(id, (state, progress) => {
-        setState(state);
-        setProgress(progress);
-      })
-      this.launchDownload(id);
+      alert("This feature is available only if you have an account. Please login first.");
     }
   }
 }

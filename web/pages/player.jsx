@@ -43,8 +43,10 @@ export default function App() {
   const [ conversionTrigger, setConversionTrigger ] = createSignal(null);
 
   async function startConversion(props) {
-    setConversionTrigger(player.s.current.id);
-    converter.requestConversion(player.s.current.id);
+    const id = player.s.current.id;
+    setConversionTrigger(id);
+    converter.requestConversion(id);
+    if (!converter.s[id]) setConversionTrigger(null);
   }
 
   return (
@@ -177,7 +179,7 @@ export default function App() {
             }}></div>
           </div>
           <div class="w-full flex flex-row justify-between">
-            <div>{converter.s[conversionTrigger()].state()+1}/4</div>
+            <div>{Math.min(4, converter.s[conversionTrigger()].state()+1)}/4</div>
             <div>{converter.s[conversionTrigger()].progress()}%</div>
           </div>
         </Show>
