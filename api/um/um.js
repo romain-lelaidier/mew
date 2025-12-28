@@ -168,7 +168,7 @@ export function addUMFunctions(app, db) {
       if (!comparePasswords(user, password)) throw new Error("Incorrect password.");
 
       const token = await generateJWT(user.id);
-      res.status(200).json({ token, id: user.id });
+      res.status(200).json({ token, id: user.id, params: user.params });
     } catch(error) {
       res.status(400).json({ error: error.message });
     }
@@ -198,7 +198,7 @@ export function addUMFunctions(app, db) {
         { $set: { params } }
       );
       const token = await generateJWT(req.user.id);
-      res.status(200).json({ token, id: req.user.id, params: req.user.params });
+      res.status(200).json({ token, id: req.user.id, params });
     } catch(error) {
       res.status(400).json({ error: error.message });
     }
