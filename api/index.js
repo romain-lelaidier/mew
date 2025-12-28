@@ -15,7 +15,12 @@ const getip = (req) => req.headers['x-real-ip'] || req.headers['x-forwarded-for'
 
 // ----- database connection -----
 const mongod_client = new MongoClient(process.env.MONGODB_URI);
-await mongod_client.connect();
+try {
+  await mongod_client.connect();
+} catch(error) {
+  console.log("Failed to establish mongod connection");
+  process.exit(1);
+}
 const db = mongod_client.db("mew");
 
 // request wrapper
