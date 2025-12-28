@@ -46,7 +46,7 @@ export default function App() {
 
             <Switch>
               <Match when={u.connected && id == u.id}>
-                <span class="bg-black px-2 py-1 text-white rounded-md cursor-pointer w-fit" onClick={(e) => { e.preventDefault(); setCplTrigger(true) }}>
+                <span class="bg-black px-2 py-1 text-d rounded-md cursor-pointer w-fit" onClick={(e) => { e.preventDefault(); setCplTrigger(true) }}>
                   <span class="flex flex-row gap-1 items-center w-fit mr-1 text-base"><Icon type="square-plus"/>Create a playlist</span>
                 </span>
                 <div><PlaylistsList playlists={u.playlists} editable={true} /></div>

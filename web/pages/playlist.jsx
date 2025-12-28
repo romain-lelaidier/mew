@@ -24,7 +24,7 @@ export default function App() {
       </MetaProvider>
 
       <BackButton/>
-      <ErrorBoundary fallback={<div>Error loading playlist: <b class="text-red-700">{playlist.error.message}</b></div>}>
+      <ErrorBoundary fallback={<div>Error loading playlist: <b class="text-r">{playlist.error.message}</b></div>}>
 
       <div>
         <div class="text-3xl">{playlist() ? (playlist().name || "History") : "Loading playlist..."}</div>
@@ -36,7 +36,7 @@ export default function App() {
           <div>Created <span>{timeAgo(playlist().createdAt)} ({new Date(playlist().createdAt).toLocaleString()})</span></div>
           
           <Show when={playlist().songs.length > 0}>
-            <Link href={`/player/${playlist().pid}`} class="w-fit bg-b py-1 mt-1 px-3 rounded-md text-white flex flex-row items-center gap-1">
+            <Link href={`/player/${playlist().pid}`} class="w-fit bg-b py-1 mt-1 px-3 rounded-md text-d flex flex-row items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 640 640" class="w-4 h-4">
                 <path d="M187.2 100.9C174.8 94.1 159.8 94.4 147.6 101.6C135.4 108.8 128 121.9 128 136L128 504C128 518.1 135.5 531.2 147.6 538.4C159.7 545.6 174.8 545.9 187.2 539.1L523.2 355.1C536 348.1 544 334.6 544 320C544 305.4 536 291.9 523.2 284.9L187.2 100.9z"/>
               </svg>
@@ -97,7 +97,7 @@ export default function App() {
         <div class="pb-2">
           <div>Are you sure you want to remove <span class="font-bold">{playlist().songs.filter(song => song.id == trashSid())[0].name}</span> from this playlist ?</div>
           <div class="flex flex-row-reverse mt-1">
-            <button class="flex flex-row px-3 py-1 bg-red-700 text-white rounded-md items-center gap-1" onclick={() => { removeFromPlaylist(pid, trashSid()).then(refetch); setTrashSid(null) }}><Icon type="trash" size="1.1"/>Delete</button>
+            <button class="flex flex-row px-3 py-1 bg-r text-d rounded-md items-center gap-1" onclick={() => { removeFromPlaylist(pid, trashSid()).then(refetch); setTrashSid(null) }}><Icon type="trash" size="1.1"/>Delete</button>
           </div>
         </div>
       </Popper>

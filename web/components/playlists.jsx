@@ -186,7 +186,7 @@ export function PlaylistsList(props) {
       <Popper sig={[trashPid, setTrashPid]} title="Remove playlist">
         <div>Are you sure you want to remove the playlist <span class="font-bold">{props.playlists[trashPid()].name}</span> ?</div>
         <div class="flex flex-row-reverse mt-1">
-          <button class="flex flex-row px-3 py-1 bg-red-700 text-white rounded-md items-center gap-1" onclick={() => { removePlaylist(trashPid()); setTrashPid(null) }}><Icon type="trash" size="1.1"/>Delete</button>
+          <button class="flex flex-row px-3 py-1 bg-r text-white rounded-md items-center gap-1" onclick={() => { removePlaylist(trashPid()); setTrashPid(null) }}><Icon type="trash" size="1.1"/>Delete</button>
         </div>
       </Popper>
     </>

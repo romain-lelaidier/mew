@@ -72,7 +72,7 @@ export function Signup(props) {
             <Field type="password" title="password" sig={[upassword, setUpassword]}/>
             <Field type="password" title="verify password" sig={[uvpassword, setUvpassword]}/>
             <input type="submit" value="Sign up" class="block w-full bg-b text-white px-3 py-2 rounded-md text-xl font-bold"></input>
-            <Show when={error()}><span class="text-red-700 text-lg italic">{error()}</span></Show>
+            <Show when={error()}><span class="text-r text-lg italic">{error()}</span></Show>
           </form>
           <div>already registered ? <LinkButton href="/login">log in here</LinkButton></div>
           </>
@@ -99,7 +99,7 @@ export function Verify(props) {
         fallback={<span>Verifying your adress...</span>}      >
         <span>{success()}</span>
       </Show>
-      <Show when={error()}><span class="text-red-700 text-lg italic">{error()}</span></Show>
+      <Show when={error()}><span class="text-r text-lg italic">{error()}</span></Show>
     </Wrapper>
   );
 }
@@ -125,7 +125,7 @@ export function Login(props) {
         <Field type="email" title="email" sig={[uemail, setUemail]}/>
         <Field type="password" title="password" sig={[upassword, setUpassword]}/>
         <input type="submit" value="Log in" class="block w-full bg-b text-white px-3 py-2 rounded-md text-xl font-bold"></input>
-        <Show when={error()}><span class="text-red-700 italic">{error()}</span></Show>
+        <Show when={error()}><span class="text-r italic">{error()}</span></Show>
       </form>
       <div>new here ? <LinkButton href="/signup">create an account</LinkButton></div>
     </Wrapper>
@@ -193,10 +193,10 @@ export function Settings(props) {
           ></input>
           <input
             type="submit" value="Delete account"
-            class="block w-full bg-red-800 text-white px-3 py-2 rounded-md text-xl font-bold"
+            class="block w-full bg-r text-white px-3 py-2 rounded-md text-xl font-bold"
             onClick={event => { event.preventDefault(); setDeleteTrigger(true); }}
           ></input>
-          <Show when={error()}><span class="text-red-700 italic">{error()}</span></Show>
+          <Show when={error()}><span class="text-r italic">{error()}</span></Show>
         </form>
 
       </Show>
@@ -222,7 +222,7 @@ export function Settings(props) {
             type="submit" value="Confirm password change"
             class="block w-full bg-b text-white px-3 py-2 rounded-md text-xl font-bold"
           ></input>
-          <Show when={pwcError()}><span class="text-red-700 italic">{pwcError()}</span></Show>
+          <Show when={pwcError()}><span class="text-r italic">{pwcError()}</span></Show>
         </form>
       </Popper>
 
@@ -238,9 +238,9 @@ export function Settings(props) {
           />
           <input
             type="submit" value="Confirm account deletion"
-            class="block w-full bg-red-800 text-white px-3 py-2 rounded-md text-xl font-bold"
+            class="block w-full bg-r text-white px-3 py-2 rounded-md text-xl font-bold"
           ></input>
-          <Show when={deleteError()}><span class="text-red-700 italic">{deleteError()}</span></Show>
+          <Show when={deleteError()}><span class="text-r italic">{deleteError()}</span></Show>
         </form>
       </Popper>
 

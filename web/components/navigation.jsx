@@ -40,13 +40,13 @@ function SearchBar(props) {
               <Icon type="xmark" size="1.1" />
             </button>
           </Show>
-          <button type="submit" class="absolute right-0 top-0 rounded-r-md bg-b p-2 border border-transparent text-center text-sm text-white transition-all shadow-sm hover:shadow focus:bg-b/80 focus:shadow-none active:bg-b/80 hover:bg-b/80 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
+          <button type="submit" class="absolute right-0 top-0 rounded-r-md bg-b p-2 border border-transparent text-center text-sm text-d transition-all shadow-sm hover:shadow focus:bg-b/80 focus:shadow-none active:bg-b/80 hover:bg-b/80 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
             <Icon type="magnifying-glass" size="1" />
           </button>
         </div>
       </form>
       <Show when={error()}>
-        <span class="text-red-700 p-3 italic">{error()}</span>
+        <span class="text-r p-3 italic">{error()}</span>
       </Show>
     </div>
   )

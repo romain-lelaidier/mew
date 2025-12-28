@@ -49,7 +49,7 @@ export default function App() {
         </div>
       </div>
 
-      <p class="text-red-700 font-bold max-w-150 text-base">
+      <p class="text-r font-bold max-w-150 text-base">
         This website is strictly restricted to its contributors.<br/>
         Users acknowledge that using this tool may be subject to third-party terms of service, including those of YouTube. By proceeding, users accept full responsibility for their actions and any resulting consequences.
       </p>

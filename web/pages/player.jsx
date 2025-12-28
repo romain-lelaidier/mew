@@ -59,7 +59,7 @@ export default function App() {
       <Show when={player.requestAutoplay()}>
         <div class="absolute z-2 bg-d/90 w-full h-full flex items-center justify-center">
           <div class="flex flex-col p-4 items-center [&>*]:text-center">
-            <span class="text-red-700 font-bold">Audio autoplay is blocked.</span>
+            <span class="text-r font-bold">Audio autoplay is blocked.</span>
             <span>Please interact with the page to play the audio, and ideally disable autoplay restrictions.</span>
             <span class="italic">Click anywhere to continue.</span>
           </div>
