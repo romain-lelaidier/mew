@@ -3,7 +3,7 @@ import { MetaProvider, Title } from "@solidjs/meta";
 import { u, uTryLog } from "../components/auth"
 import { createPlaylist, getUser, PlaylistsList } from '../components/playlists';
 import { Bar } from '../components/bar';
-import { BackButton } from '../components/utils';
+import { BackButton, Link, LinkIcon } from '../components/utils';
 import { Icon } from '../components/icons';
 import { Layout } from '../components/layout';
 import { createResource, createSignal, Match, Switch } from 'solid-js';
@@ -36,17 +36,22 @@ export default function App() {
             <Show when={data().params?.iso}><Flag iso={data().params.iso} h={0.8}/>&nbsp;</Show>
             {data().params?.name || `user-${id}`}
           </div>
+          <Show when={u.connected && id == u.id}>
+            <Link class="block w-fit bg-b px-2 py-1 text-d rounded-md cursor-pointer" href="/settings">
+              <span class="flex flex-row gap-1 items-center mr-1 text-base"><Icon type="gear"/><span>Account settings</span></span>
+            </Link>
+          </Show>
         </Show>
       </div>
 
       <div class="flex flex-col gap-2">
         <Show when={data()} fallback={<div>Loading data...</div>}>
           <div class="flex flex-col gap-1">
-            <h2 class="text-xl font-bold">Playlists</h2>
+            <h2 class="text-2xl font-bold">Playlists</h2>
 
             <Switch>
               <Match when={u.connected && id == u.id}>
-                <span class="bg-black px-2 py-1 text-d rounded-md cursor-pointer w-fit" onClick={(e) => { e.preventDefault(); setCplTrigger(true) }}>
+                <span class="bg-b px-2 py-1 text-d rounded-md cursor-pointer w-fit" onClick={(e) => { e.preventDefault(); setCplTrigger(true) }}>
                   <span class="flex flex-row gap-1 items-center w-fit mr-1 text-base"><Icon type="square-plus"/>Create a playlist</span>
                 </span>
                 <div><PlaylistsList playlists={u.playlists} editable={true} /></div>
