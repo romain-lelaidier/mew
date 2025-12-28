@@ -68,7 +68,7 @@ export function Signup(props) {
         fallback={
           <>
           <form onSubmit={onsubmit} class="mt-2 flex-grow flex flex-col gap-3">
-            <Field type="text" title="email" sig={[uemail, setUemail]}/>
+            <Field type="email" title="email" sig={[uemail, setUemail]}/>
             <Field type="password" title="password" sig={[upassword, setUpassword]}/>
             <Field type="password" title="verify password" sig={[uvpassword, setUvpassword]}/>
             <input type="submit" value="Sign up" class="block w-full bg-b text-white px-3 py-2 rounded-md text-xl font-bold"></input>
@@ -122,7 +122,7 @@ export function Login(props) {
   return (
     <Wrapper title="Log in">
       <form onSubmit={onsubmit} class="mt-2 flex-grow flex flex-col gap-3">
-        <Field type="text" title="email" sig={[uemail, setUemail]}/>
+        <Field type="email" title="email" sig={[uemail, setUemail]}/>
         <Field type="password" title="password" sig={[upassword, setUpassword]}/>
         <input type="submit" value="Log in" class="block w-full bg-b text-white px-3 py-2 rounded-md text-xl font-bold"></input>
         <Show when={error()}><span class="text-red-700 italic">{error()}</span></Show>

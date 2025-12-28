@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
-import { transporter } from "../mail/mail.js";
+import { transporter, validateEmail } from "../mail/mail.js";
 
 function generateId(len=32) {
   let uid = '';
@@ -13,7 +13,7 @@ function generateId(len=32) {
 
 async function sendVerificationEmail(email, id, verificationToken) {
   const url = `${process.env.LOCATION_WEB}verify/${id}/${verificationToken}`;
-  console.log(`Sending verification link : ${url}`);
+  console.log(`Sending verification link to [${email}]: ${url}`);
 
   try {
     await transporter.sendMail({
@@ -23,7 +23,7 @@ async function sendVerificationEmail(email, id, verificationToken) {
       html: `Hi <b>user-${id}</b>,<br/><br/>Welcome to Mew !<br/><br/>Before logging in, please verify your email using the following link :<br/><br/><a href="${url}">Verify</a><br/><br/>Have a great time on the website !`, // plain‑text body
     });
   } catch(error) {
-    console.error(error);
+    console.log(`Could not send email: ${error.message}`);
   }
 }
 
@@ -100,6 +100,8 @@ export function addUMFunctions(app, db) {
         email: { $eq: email }
       });
       if (existingUser) throw new Error("There is already an account associated with this email. Please login instead or use a different email.");
+
+      if (!validateEmail(email)) throw new Error("Invalid email.");
 
       const id = await generateFreeId("users", "id", 6);
       const verificationToken = await generateFreeId("users", "verificationToken", 32);
