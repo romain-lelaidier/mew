@@ -44,6 +44,14 @@ export async function post(url, json) {
   return await fetch(url, params);
 }
 
+export async function get(url) {
+  const params = {
+    headers: { "Content-type": "application/json" },
+  }
+  if (token() != 'null') params.headers.authorization = token();
+  return await fetch(url, params);
+}
+
 async function logFromRes(res) {
   if (!is2xx(res)) {
     uLogOut();
