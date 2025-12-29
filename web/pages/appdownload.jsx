@@ -2,6 +2,7 @@ import { MetaProvider, Title } from "@solidjs/meta";
 import { A, useNavigate } from '@solidjs/router';
 
 import { Layout } from '../components/layout';
+import { BackButton } from "../components/utils";
 
 export default function App() {
   const navigate = useNavigate();
@@ -14,30 +15,30 @@ export default function App() {
       </MetaProvider>
 
       <div class="flex flex-col font-bold">
+        <BackButton/>
         <h1 class="text-6xl">Mew</h1>
         <h2 class="text-2xl">App Download</h2>
       </div>
 
-      <p>If you encounter problems while using this simple app, please contact me using the address below the page.</p>
-
-      <p>If you know which architecture your phone runs on, please choose one the below downloads:</p>
+      <p>If you know which architecture your phone runs on, please choose one the below downloads ({'<'}20Mb):</p>
 
       <div>
         <ul class="list-disc pl-8">
-          <li><A href="release-armeabi-v7a.apk" target="_blank"><span class="font-mono">release-armeabi-v7a.apk</span></A></li>
-          <li><A href="release-arme64-v8a.apk" target="_blank"><span class="font-mono">release-arme64-v8a.apk</span></A></li>
-          <li><A href="release-x86_64.apk" target="_blank"><span class="font-mono">release-x86_64.apk</span></A></li>
+          <li><A href="https://rlup.fr/mew-armeabi-v7a.apk" target="_blank"><span class="font-mono italic">mew-armeabi-v7a.apk</span></A></li>
+          <li><A href="https://rlup.fr/mew-arme64-v8a.apk" target="_blank"><span class="font-mono italic">mew-arme64-v8a.apk</span></A></li>
+          <li><A href="https://rlup.fr/mew-x86_64.apk" target="_blank"><span class="font-mono italic">mew-x86_64.apk</span></A></li>
         </ul>
       </div>
 
-      <p>Otherwise, just download this heavier release:</p>
-
+      <p>Otherwise, just download this heavier release (50Mb):</p>
 
       <div>
         <ul class="list-disc pl-8">
-          <li><A href="release.apk" target="_blank"><span class="font-mono">release.apk</span></A></li>
+          <li><A href="https://rlup.fr/mew.apk" target="_blank"><span class="font-mono font-bold">mew.apk</span></A></li>
         </ul>
       </div>
+
+      <p class="text-r italic">If you encounter problems while using this simple app, please contact me using the address at the bottom of the page.</p>
 
     </Layout>
   );
