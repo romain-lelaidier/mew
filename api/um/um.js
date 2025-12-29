@@ -51,7 +51,7 @@ export function addUMFunctions(app, db) {
     /* Generates a JSON Web Token for the user whose id is given as an argument */
     const user = await db.collection("users").findOne({ id: { $eq: id } });
     if (!user) throw new Error("This user does not exist.");
-    return jsonwebtoken.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '10d' });
+    return jsonwebtoken.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_DURATION });
   }
 
   function getUserFromJWT(token) {
