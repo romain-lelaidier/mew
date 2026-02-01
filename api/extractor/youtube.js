@@ -89,13 +89,22 @@ export class YouTubeExtractor {
       }
     }
 
+    // this.baseHeaders = {
+    //   'X-YouTube-Client-Name': '7',
+    //   'X-YouTube-Client-Version': '7.20250521.15.00',
+    //   'Origin': 'https://www.youtube.com',
+    //   'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)',
+    //   'content-type': 'application/json',
+    //   'X-Goog-Visitor-Id': 'CgstXzB5X3dIaS1fMCjsjtjBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiAu'
+    // }
+
     this.baseHeaders = {
-      'X-YouTube-Client-Name': '7',
-      'X-YouTube-Client-Version': '7.20250521.15.00',
+      'X-YouTube-Client-Name': '28',
+      'X-YouTube-Client-Version': '1.71.26',
       'Origin': 'https://www.youtube.com',
-      'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,gzip(gfe)',
+      'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
       'content-type': 'application/json',
-      'X-Goog-Visitor-Id': 'CgstXzB5X3dIaS1fMCjsjtjBBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiAu'
+      'X-Goog-Visitor-Id': 'CgtpaW9iYUw0QmJBUSj9t_3LBjInCgJGUhIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiBT'
     }
 
     this.INNERTUBE_CLIENT_VERSION = '';
@@ -194,15 +203,14 @@ export class YouTubeExtractor {
         "yti_player", "json",
         "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
         {
-          "context": {
-            "client": {"clientName": "ANDROID", "clientVersion": "20.10.38", "userAgent": "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip", "osName": "Android", "osVersion": "11", "hl": "en", "timeZone": "UTC", "utcOffsetMinutes": 0}
-          },
-          "videoId": id,
-          "playbackContext": {
-            "contentPlaybackContext": {"html5Preference": "HTML5_PREF_WANTS", "signatureTimestamp": player.sts}
-          }, 
-          "contentCheckOk": true,
-          "racyCheckOk": true,
+          'context': {'client': {'clientName': 'ANDROID_VR', 'clientVersion': '1.71.26', 'deviceMake': 'Oculus', 'deviceModel': 'Quest 3', 'androidSdkVersion': 32, 'userAgent': 'com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip', 'osName': 'Android', 'osVersion': '12L', 'hl': 'en', 'timeZone': 'UTC', 'utcOffsetMinutes': 0}},
+          'videoId': id,
+          'playbackContext': {'contentPlaybackContext': {'html5Preference': 'HTML5_PREF_WANTS', 'signatureTimestamp': player.sts}},
+          'contentCheckOk': true,
+          'racyCheckOk': true
+        },
+        {
+          headers: this.baseHeaders
         }
       )
       .then(resolve)
