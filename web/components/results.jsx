@@ -185,7 +185,7 @@ export function SearchResultTop(props) {
         <div>
           <span class="font-bold">{result.name}</span>
           <AggregateSpans strs={[
-            [result.artists ? result.artists.map(a => a.name).join(', ') : result.artist.name],
+            [result.artists ? result.artists.map(a => a.name).join(', ') : (result.artist ? result.artist.name : null) ],
             [result.album?.name, "italic"]
           ]} sep={mds} bf={<br/>} />
           <AggregateSpans strs={[
