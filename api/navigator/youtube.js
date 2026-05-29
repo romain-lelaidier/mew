@@ -175,6 +175,8 @@ export class YouTubeParser {
     var endpoints = {};
 
     contents.forEach(shelf => {
+
+      // top results
       if ("musicCardShelfRenderer" in shelf) {
         var renderer = shelf.musicCardShelfRenderer;
         var musicResult = this.extractTopRendererInfo(renderer);
@@ -183,21 +185,27 @@ export class YouTubeParser {
           this.addResult(musicResult, musicResults);
         }
       }
+      
+      // not top results
+      var rendererContents = null;
       if ("musicShelfRenderer" in shelf) {
-        // var forcedType;
-        // if (shelf.musicShelfRenderer.title.runs[0].text == 'Titres') {
-        //   forcedType = 'SONG';
-        //   endpoints.SONG = shelf.musicShelfRenderer.bottomEndpoint;
-        // }
-        shelf.musicShelfRenderer.contents.forEach(musicObj => {
-          var renderer = musicObj.musicResponsiveListItemRenderer;
-          var musicResult = this.extractRendererInfo(renderer);
-          if (musicResult) {
-            // if (forcedType) musicResult.type = forcedType;
-            this.addResult(musicResult, musicResults);
+        rendererContents = shelf.musicShelfRenderer.contents;
+      } else if ("itemSectionRenderer" in shelf) {
+        rendererContents = shelf.itemSectionRenderer.contents;
+      }
+      if (rendererContents != null) {
+        rendererContents.forEach(musicObj => {
+          if ("musicResponsiveListItemRenderer" in musicObj) {
+            var renderer = musicObj.musicResponsiveListItemRenderer;
+            var musicResult = this.extractRendererInfo(renderer);
+            if (musicResult) {
+              // if (forcedType) musicResult.type = forcedType;
+              this.addResult(musicResult, musicResults);
+            }
           }
         })
       }
+      
     });
 
     return endpoints;
@@ -548,8 +556,7 @@ export class YouTubeNavigator {
       {
         query: query,
         context: this.baseContext
-      },
-      // { save: true, load: true }
+      }
     )
 
     var results = [];
@@ -597,10 +604,10 @@ export class YouTubeNavigator {
     return artist;
   }
 
-  async playlist(info) {
+  async playlist(id) {
     var html = await this.ww.get(
       "browse_playlist", "html",
-      'https://music.youtube.com/playlist?list=' + info.id,
+      'https://music.youtube.com/playlist?list=' + id,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0'
@@ -615,7 +622,7 @@ export class YouTubeNavigator {
     var data = JSON.parse(initialData.filter(d => d.path == '/browse')[0].data);
 
     var playlist = this.parser.extractPlaylist(data);
-    playlist.id = info.id;
+    playlist.id = id;
 
     return playlist;
   }
