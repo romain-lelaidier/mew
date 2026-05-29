@@ -135,8 +135,8 @@ export function chooseFormat(formats) {
   var audioSorted = formats
     .filter(fmt => fmt.mimeType.includes("audio/webm"))
     .sort((fmt1, fmt2) => fmt2.bitrate - fmt1.bitrate)
-  if (audioSorted) return audioSorted[0];
-  return formats[1];
+  if (audioSorted.length > 0) return audioSorted[0];
+  return formats[0];
 }
 
 export function chooseThumbnail(thumbnails, width=Infinity) {

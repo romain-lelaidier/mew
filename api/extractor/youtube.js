@@ -137,8 +137,8 @@ export class YouTubeExtractor {
         "watch", "html",
         "https://music.youtube.com/watch?v=" + id,
         {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0" }
-        },
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0" },
+        }
       );
       var playerMatch = html.match(/\/s\/player\/([a-z0-9]{8})\/player_.{3}\.vflset\/([a-z]{2}_[A-Z]{2})\/base\.js/);
       if (!playerMatch) return reject("Error downloading player: player URL not found in html");
@@ -239,7 +239,9 @@ export class YouTubeExtractor {
             "videoId": id,
             context: this.baseContext
           },
-          { headers: this.baseHeaders }
+          { 
+            headers: this.baseHeaders,
+          }
         )
       ])
       .then(([ytipr, ytins]) => {
@@ -250,6 +252,7 @@ export class YouTubeExtractor {
           views: parseInt(ytipr.videoDetails.viewCount),
           duration: parseInt(ytipr.videoDetails.lengthSeconds),
           formats: ytipr.streamingData.formats.concat(ytipr.streamingData.adaptiveFormats)
+            .filter(fmt => "url" in fmt)
             // .filter(fmt => fmt.mimeType.includes("audio/webm"))
         };
 
