@@ -1,6 +1,8 @@
 import { get } from "https";
 import fs from "fs";
 import { FFMpegProgress } from "ffmpeg-progress-wrapper";
+import ffmpeg from "fluent-ffmpeg";
+import { PassThrough } from "stream";
 
 export class YouTubeDownloader {
   constructor(ww, db) {
@@ -39,6 +41,20 @@ export class YouTubeDownloader {
         { headers: { 'Range': 'bytes=0-' } }, // magic here
         resolve
       )
+    })
+  }
+
+  fastDownloadStreamAAC(video) {
+    return new Promise(async (resolve, reject) => {
+      const stream = await this.fastDownloadStream(video);
+      resolve(ffmpeg()
+        .input(stream)
+        .noVideo()
+        .audioCodec('copy')
+        .outputFormat('adts')
+        .on('error', (err) => {
+          console.error('Erreur ffmpeg:', err);
+        }));
     })
   }
 
@@ -172,4 +188,5 @@ export class YouTubeDownloader {
       })
     })
   }
+
 }

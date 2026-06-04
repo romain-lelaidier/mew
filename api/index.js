@@ -125,6 +125,11 @@ app.get('/api/album/:arid/:alid', dmw, async (req, res) => {
   res.json(album);
 })
 
+app.get('/api/playlist/:id', dmw, async (req, res) => {
+  const album = await navigators.youtube.playlist(req.params.id);
+  res.json(album);
+})
+
 app.get('/api/video/:id', dmw, async (req, res) => {
   try {
     const obj = { id: req.params.id };
@@ -167,12 +172,12 @@ app.get('/api/colors', async (req, res) => {
 // ----- um -----
 const authenticateJWT = addUMFunctions(app, db);
 
-app.get('/api/download/:id', authenticateJWT, async (req, res) => {
+app.get('/api/download/:id', async (req, res) => {
   try {
     const obj = { id: req.params.id };
     const video = await extractors.youtube.getVideo(obj);
     logVideo("download", req, video.video);
-    const stream = await downloaders.youtube.fastDownloadStream(video.video);
+    const stream = await downloaders.youtube.fastDownloadStreamAAC(video.video);
     stream.pipe(res);
   } catch(error) {
     res.status(400).json({ error: error.message })
@@ -208,9 +213,13 @@ app.get('/api/converted/:id', authenticateJWT, async (req, res) => {
   }
 })
 
-// console.log(await extractors.youtube.getVideo({"id":"uSDWUx7S8dw"}, db))
+// console.log(await navigators.youtube.search("no one noticed"));
+
+// console.log(await extractors.youtube.getVideo({"id":"Qn8F_u0vBNI"}, db))
 
 const PORT = process.env.PORT_API || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// console.log(await navigators.youtube.playlist({ id: "PLldKJnvftUwcATZ8y3jJydVkweDSdNA8g" }))
